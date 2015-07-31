@@ -1,0 +1,16 @@
+name,8,str
+hp,2
+ap,2
+luck,1
+atp,2
+dfp,2
+agl,2
+ms,1
+xp,2
+gp,2
+treasure_set,1
+type,1
+treasure_class,1
+immunity,1
+unknown3,3,str
+graphics,1

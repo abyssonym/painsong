@@ -1,0 +1,9 @@
+# objname tablefile address count grouped
+CharacterObject character_table.txt 87c     19
+ChestObject     chest_table.txt     63d3a   160
+DresserObject   dresser_table.txt   5b948   186     true
+ItemObject      item_table.txt      70000   256
+MonsterObject   monster_table.txt   59000   200
+DropObject      drop_table.txt      54b40   64
+LevelUpObject   levelup_table.txt   571b0   9
+SpellObject     spell_table.txt     584f0   84

@@ -1,0 +1,9 @@
+name,8,str
+price,2
+unknown1,1
+unknown2,1
+misc1,bit:holy fire lightning ice usable_battle target_all target_ally cant_be_sold
+equippable,1
+power,1
+# weight, etc.
+weight,1

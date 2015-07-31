@@ -1,0 +1,7 @@
+# 16 bytes, 58500
+name,8,str
+cost,1
+zero1,1
+unknown1,2,str
+element,bit:holy fire lightning ice wind zero earth nonelemental
+unknown2,3,str
