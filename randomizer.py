@@ -15,7 +15,24 @@ class CharacterObject(TableObject):
 
 
 class ItemObject(TableObject):
-    pass
+    @property
+    def rank(self):
+        if self.index == 0x3e:
+            rank = 8000
+        elif self.key_item or not self.display_name:
+            return -1
+        elif self.equippable and (self.get_bit("cant_be_sold")
+                                  or self.price <= 1):
+            rank = (self.power ** 1.5) * 50
+        else:
+            rank = self.price
+            if self.equippable:
+                rank += self.power
+        return rank + (0.001 * self.index)
+
+    @property
+    def key_item(self):
+        return self.get_bit("cant_be_sold") and not self.equippable
 
 
 class DropObject(TableObject):
@@ -222,6 +239,7 @@ if __name__ == "__main__":
             value = "{0:0>2}".format("%x" % value)
         return value
 
+    '''
     #print "FISHCHESTS"
     #for c in ChestObject.every[-8:]:
     #    print c
@@ -230,7 +248,6 @@ if __name__ == "__main__":
     #    m.unknown3 = "".join([chr(j) for j in [0x92, 0x4a, 0xfe]])
     #    m.write_data(testfile)
 
-    '''
     for ch in CharacterObject.every:
         a = ch.name
         b = hexstring(ch.unknown2)
@@ -241,8 +258,10 @@ if __name__ == "__main__":
         #print "{0:4} {2:18} {3:14}".format(a, None, c, d),
         print "%x %x" % (ch.some_index, ch.pointer)
 
+    '''
     for i in ItemObject.every:
-        print hexstring(i.index), hexstring(i.unknown1), hexstring(i.unknown2), hexstring(i.weight), i.name
+        print hexstring(i.index), hexstring(i.equippable), hexstring(i.power), hexstring(i.weight), i.name
+    '''
 
     for s in SpellObject.every:
         print "%x" % s.index, hexstring(s.unknown1), hexstring(s.unknown2),
