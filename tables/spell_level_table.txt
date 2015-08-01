@@ -1,0 +1,85 @@
+3 2 Cure 1
+20 2 TimeWarp
+4 3 CurePsn
+1a 3 Ag.Down
+a 5 Spark
+13 5 Def.Up
+1b 6 Pwr.Down
+19 8 Def.Down
+28 8 Tornado
+26 9 Thunder
+14 10 Ag.Up
+18 10 Hush
+29 10 Bomb
+1f 12 Exit
+2 13 S-Boom
+1e 14 Warp
+22 15 Flame
+17 16 Idle
+2f 16 Cure 2
+6 17 Drain
+23 18 Cold
+1d 19 Smoke
+e 20 Renew
+1c 21 Sap
+5 22 Typhoon
+d 23 Heal
+24 24 Freeze
+2b 24 8-0
+12 26 Def.UpX
+2d 26 Angel
+2e 28 Death
+b 30 Cure 4
+16 30 Shield
+25 31 Hail
+1 33 Cure 3
+7 33 Fireball
+21 34 Boombada
+f 36 RenewX
+15 36 Atk.Up
+27 36 Bolt X
+2a 37 Missile
+c 40 Cure X
+
+0 -1 Dummy
+8 12 Woodstep
+9 -1 ShortAP
+10 25 Dispell
+11 1 Katomana
+2c -1 RotBrth
+30 11 FirPuppy
+31 11 IcePuppy
+32 11 T.Puppy
+33 17 FireDrgn
+34 17 IceDrgn
+35 17 T.Drgn
+36 -1 G.Drgn
+37 26 G.Drgn
+38 9 Zombie
+39 12 Flrmagic
+3a 12 Ctcsbomb
+3b 1 Petrify
+3c 7 Psn.Atck
+3d -1 Psn.Brth
+3e 1 Mindblst
+3f -1 SwtBrth
+40 25 Curse
+41 -1 FireBrth
+42 -1 ColdBrth
+43 13 Chopchop
+44 19 Dice
+45 27 GrndBeef
+46 -1 Horror
+47 -1 Psn.Chop
+48 1 Spore
+49 1 Spore
+4a 10 Herb
+4b 1 Recover
+4c -1 IdiotLzr
+4d 1 Hunt
+4e 12 Whodini
+4f -1 Anfini
+50 -1 BoneLzr
+51 -1 Anfini
+52 -1 Absorb
+53 -1 Anfini
