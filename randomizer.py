@@ -31,12 +31,11 @@ class SpellObject(TableObject):
                 line = line.replace("  ", " ")
             index, level, _ = line.split(' ', 2)
             index, level = int(index, 0x10), int(level)
-            rank = level + (0.001 * index)
+            rank = level
             so = SpellObject.get(index)
             self.rankings[so] = rank
         f.close()
         for so in SpellObject.every:
-            print so
             assert so in self.rankings
         return self.rank
 
@@ -50,20 +49,39 @@ class ItemObject(TableObject):
     def rank(self):
         if self.index == 0x3e:
             rank = 8000
-        elif self.key_item or not self.display_name:
-            return -1
+        elif self.key_item or self.price == 0 or not self.display_name:
+            rank = -1
         elif self.equippable and (self.get_bit("cant_be_sold")
-                                  or self.price <= 1):
+                                  or self.price <= 1
+                                  or self.index in [0xad]):
             rank = (self.power ** 1.5) * 50
         else:
             rank = self.price
             if self.equippable:
                 rank += self.power
-        return rank + (0.001 * self.index)
+        return rank
 
     @property
     def key_item(self):
         return self.get_bit("cant_be_sold") and not self.equippable
+
+    def get_similar(self):
+        if self.key_item or self.rank < 0:
+            return self
+        candidates = [i for i in ItemObject.ranked if
+                      i.rank >= 0 and not i.key_item]
+        index = candidates.index(self)
+        index = mutate_normal(index, maximum=len(candidates)-1)
+        return candidates[index]
+
+    def mutate_price(self):
+        if self.price <= 14:
+            return
+        price = mutate_normal(self.price, maximum=65000)
+        rounder = 1 if price < 100 else 2 if price < 1000 else 3
+        price = round((price * 2) / (10.0 ** rounder))
+        price = int(price * (10 ** rounder) / 2)
+        self.price = price
 
 
 class DropObject(TableObject):
@@ -73,9 +91,19 @@ class DropObject(TableObject):
 
     @property
     def rank(self):
-        rank = int(round(((ItemObject.get(self.common).rank * 3)
-                          + ItemObject.get(self.rare).rank)))
-        return rank + (0.01 * self.index)
+        if any([i.rank < 0 for i in self.items]):
+            rank = -1
+        else:
+            rank = int(round(((ItemObject.get(self.common).rank * 3)
+                              + ItemObject.get(self.rare).rank)))
+        return rank
+
+    def mutate(self):
+        items = [i.get_similar() for i in self.items]
+        if self.common == self.rare:
+            items = sorted(items, key=lambda i: (i.rank, i.index))
+        items = [i.index for i in items]
+        self.common, self.rare = tuple(items)
 
 
 class LevelUp:
@@ -188,21 +216,34 @@ class TreasureObject(TableObject):
 
     @property
     def rank(self):
-        return int(round(self.item.rank)) + (0.001 * self.index)
+        return int(round(self.item.rank))
 
 
 class ChestObject(TreasureObject):
-    pass
+    def mutate(self):
+        self.contents = self.item.get_similar().index
 
 
 class DresserObject(TreasureObject):
+    addrdict = {}
+
     def __repr__(self):
-        contents = self.contents - 1
+        contents = self.contents
         try:
             itemname = ItemObject.get(contents)
         except IndexError:
             itemname = "UNKNOWN"
-        return "%s %x %x %s" % (self.index, self.pointer, self.address, itemname)
+        return "%s %x %x %s" % (self.index, self.pointer, self.address,
+                                itemname)
+
+    def mutate(self):
+        if self.address in self.addrdict:
+            self.contents = self.addrdict[self.address]
+            return
+
+        self.contents = self.item.get_similar().index
+        assert self.contents > 0
+        self.addrdict[self.address] = self.contents
 
 
 class MonsterObject(TableObject):
@@ -243,7 +284,14 @@ class MonsterObject(TableObject):
             attr_ranks.append(attr_rank)
         rank = sum(attr_ranks) / len(attr_ranks)
         rank = int(round(rank * 10000))
-        return rank + (0.001 * self.index)
+        return rank
+
+    def mutate_treasure(self):
+        if self.drops.rank < 0:
+            return
+        self.treasure_set = (DropObject.get(self.treasure_set)
+                                       .get_similar().index)
+        self.treasure_class = mutate_normal(self.treasure_class, maximum=6)
 
 
 class LearnObject(TableObject):
@@ -383,7 +431,30 @@ if __name__ == "__main__":
         print hexstring(m.graphics), hexstring(m.unknown3), m.display_name
     #write_learn_spells(testfile)
 
+    '''
     for l in LevelUpObject.every:
         l.mutate()
+        l.write_data()
+
+    for c in ChestObject.every:
+        c.mutate()
+        c.write_data()
+
+    for d in DresserObject.every:
+        d.mutate()
+        d.write_data()
+    '''
+
+    for d in DropObject.every:
+        d.mutate()
+        d.write_data()
+
+    for m in MonsterObject:
+        print m.display_name
+        print m.drops.items
+        m.mutate_treasure()
+        print m.drops.items
+        print
+        m.write_data()
 
     import pdb; pdb.set_trace()
