@@ -13,6 +13,7 @@ except ImportError:
 spell_level_file = path.join(tblpath, "spell_level_table.txt")
 
 g_learns = None
+g_shops = None
 
 
 class SpellObject(TableObject):
@@ -248,6 +249,10 @@ class DresserObject(TreasureObject):
 
 class MonsterObject(TableObject):
     minmax_dict = {}
+    maxdict = {"hp": 65535, "ap": 65535, "luck": 255,
+               "atp": 511, "dfp": 511,
+               "agl": 511, "ms": 7, "immunity": 255,
+               "xp": 65535, "gp": 65535}
 
     def __repr__(self):
         unknown3 = " ".join(["{0:02x}".format(ord(c)) for c in self.unknown3])
@@ -265,7 +270,7 @@ class MonsterObject(TableObject):
             return -1
 
         attrs = ["hp", "ap", "luck", "atp",
-                 "dfp", "agl", "ms"]
+                 "dfp", "agl", "ms", "immunity"]
         if not self.minmax_dict:
             for attr in attrs:
                 values = [getattr(m, attr) for m in MonsterObject.every]
@@ -292,6 +297,21 @@ class MonsterObject(TableObject):
         self.treasure_set = (DropObject.get(self.treasure_set)
                                        .get_similar().index)
         self.treasure_class = mutate_normal(self.treasure_class, maximum=6)
+
+    def mutate_stats(self):
+        ranked = MonsterObject.ranked
+        if self.immunity > 0x40:
+            modifactor = (ranked.index(self) / float(len(ranked)-1)) / 2.0
+            assert modifactor <= 0.50
+        else:
+            modifactor = 0
+        for attr in sorted(self.maxdict):
+            maxval = self.maxdict[attr]
+            value = getattr(self, attr)
+            if modifactor > 0:
+                value = int(round(value * (1 + modifactor)))
+            value = mutate_normal(value, maximum=maxval)
+            setattr(self, attr, value)
 
 
 class LearnObject(TableObject):
@@ -344,6 +364,41 @@ class LearnObject(TableObject):
         return pointer
 
 
+class ShopObject(TableObject):
+    def __init__(self, filename, index, pointer):
+        self.filename = filename
+        self.pointer = pointer
+        self.index = index
+        if filename:
+            self.read_data(filename, pointer)
+
+    @classproperty
+    def every(self):
+        return get_shops()
+
+    @property
+    def items(self):
+        return [ItemObject.get(i) for i in self.contents]
+
+    def read_data(self, filename, pointer):
+        f = open(filename, 'r+b')
+        self.contents = []
+        while True:
+            f.seek(pointer)
+            value = ord(f.read(1))
+            if value == 0:
+                break
+            self.contents.append(value)
+            pointer += 1
+        f.close()
+
+    def write_data(self, filename):
+        f = open(filename)
+        f.seek(self.pointer)
+        f.write("".join([chr(c) for c in self.contents]))
+        f.close()
+
+
 def get_learn_spells(filename=None):
     global g_learns
     if g_learns is not None:
@@ -375,12 +430,37 @@ def write_learn_spells(filename):
     f.close()
 
 
+def get_shops(filename=None):
+    global g_shops
+    if g_shops is not None:
+        return list(g_shops)
+
+    pointer = 0x3fac0
+    maxpointer = 0x3fbad
+    shops = []
+    f = open(filename, 'r+b')
+    for i in xrange(1000):
+        f.seek(pointer)
+        s = ShopObject(filename, i, pointer)
+        shops.append(s)
+        pointer = s.pointer + len(s.contents) + 1
+        if pointer > maxpointer:
+            break
+    else:
+        raise Exception("Too many shops.")
+    f.close()
+
+    g_shops = shops
+    return get_shops()
+
+
 if __name__ == "__main__":
     filename = "bof2.smc"
     testfile = "test.smc"
     copyfile(filename, testfile)
     set_global_table_filename(testfile)
     get_learn_spells(testfile)
+    get_shops(testfile)
 
     all_objects = [g for g in globals().values()
                    if isinstance(g, type) and issubclass(g, TableObject)

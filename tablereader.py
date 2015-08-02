@@ -94,6 +94,10 @@ class TableObject(object):
     def every(cls):
         return get_table_objects(cls, filename=GLOBAL_FILENAME)
 
+    @property
+    def rank(self):
+        return self.index
+
     @classproperty
     def ranked(cls):
         return sorted(cls.every, key=lambda c: (c.rank, c.index))
@@ -108,7 +112,18 @@ class TableObject(object):
 
     @classmethod
     def get(cls, index):
-        return GRAND_OBJECT_DICT[cls, index]
+        if isinstance(index, int):
+            return GRAND_OBJECT_DICT[cls, index]
+        elif isinstance(index, str) or isinstance(index, unicode):
+            objs = [o for o in cls.every if index in o.name]
+            if len(objs) == 1:
+                return objs[0]
+            elif len(objs) >= 2:
+                raise Exception("Too many matching objects.")
+            else:
+                raise Exception("No matching objects.")
+        else:
+            raise Exception("Bad index.")
 
     def get_bit(self, bitname):
         for key, value in sorted(self.bitnames.items()):
