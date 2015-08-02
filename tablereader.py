@@ -1,4 +1,4 @@
-from utils import read_multi, write_multi, classproperty
+from utils import read_multi, write_multi, classproperty, mutate_normal
 from os import path
 
 
@@ -49,6 +49,11 @@ class TableSpecs:
 
 
 class TableObject(object):
+    class __metaclass__(type):
+        def __iter__(self):
+            for obj in self.ranked:
+                yield obj
+
     def __init__(self, filename=None, pointer=None):
         assert hasattr(self, "specs")
         assert self.total_size
@@ -92,6 +97,14 @@ class TableObject(object):
     @classproperty
     def ranked(cls):
         return sorted(cls.every, key=lambda c: (c.rank, c.index))
+
+    def get_similar(self):
+        if self.rank < 0:
+            return self
+        candidates = [c for c in self.ranked if c.rank >= 0]
+        index = candidates.index(self)
+        index = mutate_normal(index, maximum=len(candidates)-1)
+        return candidates[index]
 
     @classmethod
     def get(cls, index):
