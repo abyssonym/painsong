@@ -12,5 +12,4 @@ treasure_set,1
 type,1
 treasure_class,1
 immunity,1
-unknown3,3,str
-graphics,1
+unknown,4,str

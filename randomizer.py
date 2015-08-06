@@ -16,6 +16,10 @@ g_learns = None
 g_shops = None
 
 
+class UnknownObject(TableObject):
+    pass
+
+
 class SpellObject(TableObject):
     rankings = {}
 
@@ -42,10 +46,83 @@ class SpellObject(TableObject):
 
 
 class CharacterObject(TableObject):
-    pass
+    def set_initial_equips(self):
+        if self.index == 8:
+            index = 7 - 4
+        else:
+            index = 7 - self.index
+        mask = 1 << index
+        candidates = [i for i in ItemObject.ranked if i.equippable & mask]
+        self.weapon = [i for i in candidates if i.is_weapon][:2][-1].index
+        self.shield = [i for i in candidates if i.is_shield][:2][-1].index
+        self.helmet = [i for i in candidates if i.is_helmet][:2][-1].index
+        self.armor = [i for i in candidates if i.is_armor][:2][-1].index
 
 
 class ItemObject(TableObject):
+    equip_dict = {}
+    suffix_dict = {
+        None: ["BR", "BT", "SF"],
+        0x05: ["DR"], 0x8a: ["SD"], 0x8b: ["DR"], 0x8c: ["RP"], 0x8d: [],
+        0x8e: ["BW"], 0x8f: ["KN"], 0x90: ["ST"], 0x91: ["RG"], 0x92: ["WP"],
+        0x93: ["HT", "Mask"], 0x94: ["AR", "RB", "ML", "CL"], 0x95: ["CL"],
+        0x96: ["SH", "GL"], 0x97: ["DR"],
+        }
+    itemtypes = {
+        "weapon": [0x05, 0x8a, 0x8b, 0x8c, 0x8e, 0x8f, 0x90, 0x91, 0x92, 0x97],
+        "armor": [0x94, 0x95], "helmet": [0x93], "shield": [0x96],
+        "accessory": [None],
+        }
+    newnames = []
+    suffixes = sorted(set([sx for sxlist in suffix_dict.values()
+                           for sx in sxlist]))
+    for sx in suffixes:
+        assert sx not in suffix_dict
+        suffix_dict[sx] = sorted([key for key, vals in suffix_dict.items()
+                                  if sx in vals])
+
+    @property
+    def suffix(self):
+        for sx in self.suffixes:
+            if self.display_name.endswith(sx):
+                return sx
+
+    @property
+    def is_dragon(self):
+        return self.itemtype == 0x8d
+
+    @property
+    def is_weapon(self):
+        if self.is_dragon:
+            return self.index == 0x7b
+        return self.itemtype in self.itemtypes["weapon"]
+
+    @property
+    def is_accessory(self):
+        return 0x3f <= self.index <= 0x50
+
+    @property
+    def is_armor(self):
+        if self.is_dragon:
+            return self.index == 0xdd
+        return self.itemtype in [0x94, 0x95]
+
+    @property
+    def is_shield(self):
+        if self.is_dragon:
+            return self.index == 0xee
+        return self.itemtype in [0x96]
+
+    @property
+    def is_helmet(self):
+        if self.is_dragon:
+            return self.index == 0xf4
+        return self.itemtype in [0x93]
+
+    @property
+    def is_fishing(self):
+        return self.itemtype in [0xf7]
+
     @property
     def rank(self):
         if self.index == 0x3e:
@@ -83,6 +160,55 @@ class ItemObject(TableObject):
         price = round((price * 2) / (10.0 ** rounder))
         price = int(price * (10 ** rounder) / 2)
         self.price = price
+
+    def mutate_equippable(self):
+        if self.index <= 0x3e:
+            return
+
+        if not self.equip_dict:
+            for sx in self.suffixes:
+                self.equip_dict[sx] = []
+            for i in ItemObject.every:
+                if i.index <= 0x5b or i.is_accessory or not i.display_name:
+                    continue
+                if i.is_dragon or i.itemtype in self.suffix_dict[i.suffix]:
+                    self.equip_dict[i.suffix].append(i.equippable)
+                else:
+                    suffix = random.choice(self.suffix_dict[i.itemtype])
+                    self.equip_dict[suffix].append(i.equippable)
+
+        if self.is_accessory:
+            while random.randint(1, 25) == 25:
+                if self.equippable == 0xff:
+                    self.equippable = 0
+                self.equippable |= 1 << random.randint(0, 7)
+
+        for typestr in ["weapon", "shield", "helmet", "armor"]:
+            if getattr(self, "is_%s" % typestr) and self.suffix is not None:
+                if typestr in ["shield", "helmet"]:
+                    itemtypes = (self.itemtypes["shield"] +
+                                 self.itemtypes["helmet"])
+                else:
+                    itemtypes = self.itemtypes[typestr]
+                itemtype = random.choice(itemtypes)
+
+                suffixes = self.suffix_dict[itemtype]
+                suffixes = [
+                    s for s in suffixes
+                    if len(s) + len(self.display_name) - len(self.suffix) <= 8]
+                suffix = random.choice(suffixes)
+
+                display_name = self.display_name[:-len(self.suffix)] + suffix
+                if display_name in self.newnames:
+                    if self.display_name not in self.newnames:
+                        break
+                self.newnames.append(display_name)
+
+                self.itemtype = itemtype
+                self.equippable = random.choice(self.equip_dict[suffix])
+                self.name = display_name + "".join(
+                    [chr(0) for _ in xrange(8-len(display_name))])
+                assert len(self.name) == 8
 
 
 class DropObject(TableObject):
@@ -153,6 +279,8 @@ class LevelUpObject(TableObject):
             self.levels[level_index] = lv
 
     def write_data(self, filename=None, pointer=None):
+        if self.index == 8:
+            print "WARNING! This will overwrite other data!"
         self.data = ""
         for i in xrange(98):
             level_index = i + 2
@@ -392,8 +520,8 @@ class ShopObject(TableObject):
             pointer += 1
         f.close()
 
-    def write_data(self, filename):
-        f = open(filename)
+    def write_data(self):
+        f = open(self.filename, 'r+b')
         f.seek(self.pointer)
         f.write("".join([chr(c) for c in self.contents]))
         f.close()
@@ -495,7 +623,17 @@ if __name__ == "__main__":
         print "%x %x" % (ch.some_index, ch.pointer)
 
     for i in ItemObject.every:
-        print hexstring(i.index), hexstring(i.equippable), hexstring(i.power), hexstring(i.weight), i.name
+        print hexstring(i.index), hexstring(i.itemtype), hexstring(i.unknown), hexstring(i.equippable), i.display_name, i.is_helmet
+        #print hexstring(i.index), hexstring(i.equippable), i.display_name
+
+    import string
+    for i in ItemObject.every:
+        if len(i.display_name) >= 2:
+            if i.display_name[-1] in string.uppercase and i.display_name[-2] in string.uppercase:
+                #print hexstring(i.itemtype), i.display_name[-2:], i.display_name
+                pass
+            else:
+                print hexstring(i.itemtype), i.display_name[-2:], i.display_name
 
     for s in SpellObject.every:
         print "%x" % s.index, hexstring(s.unknown1), hexstring(s.unknown2), hexstring(s.element),
@@ -506,12 +644,11 @@ if __name__ == "__main__":
         #ch.copy_data(ryu)
         ch.some_index = ryu.some_index
         ch.write_data()
-    '''
+
     for m in MonsterObject.every:
-        print hexstring(m.graphics), hexstring(m.unknown3), m.display_name
+        print hexstring(m.unknown), m.display_name
     #write_learn_spells(testfile)
 
-    '''
     for l in LevelUpObject.every:
         l.mutate()
         l.write_data()
@@ -523,18 +660,17 @@ if __name__ == "__main__":
     for d in DresserObject.every:
         d.mutate()
         d.write_data()
+
+    for s in ShopObject:
+        s.write_data()
+
+    for c in CharacterObject.every[:9]:
+        c.set_initial_equips()
+
+    for u in UnknownObject:
+        print hexstring(u.index), hexstring(u.index >> 5), hexstring(u.unknown)
     '''
-
-    for d in DropObject.every:
-        d.mutate()
-        d.write_data()
-
-    for m in MonsterObject:
-        print m.display_name
-        print m.drops.items
-        m.mutate_treasure()
-        print m.drops.items
-        print
-        m.write_data()
-
-    import pdb; pdb.set_trace()
+    for i in ItemObject.every:
+        print "%x" % i.index, i.display_name, hexstring(i.equippable)
+        i.mutate_equippable()
+        print "%x" % i.index, i.display_name, hexstring(i.equippable)

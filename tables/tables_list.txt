@@ -7,3 +7,4 @@ MonsterObject   monster_table.txt   59000   200
 DresserObject   dresser_table.txt   5b948   186     true
 ChestObject     chest_table.txt     63d3a   160
 ItemObject      item_table.txt      70000   256
+UnknownObject   unknown_table.txt   57df0   256
