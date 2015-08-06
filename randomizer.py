@@ -1,7 +1,10 @@
 from tablereader import TableObject, set_global_table_filename
-from utils import read_multi, write_multi, classproperty, mutate_normal, random
+from utils import (read_multi, write_multi, classproperty, mutate_normal,
+                   hexstring, utilrandom as random)
 from shutil import copyfile
-from os import path
+from os import path, remove
+from sys import argv
+from time import time
 
 
 try:
@@ -143,11 +146,15 @@ class ItemObject(TableObject):
     def key_item(self):
         return self.get_bit("cant_be_sold") and not self.equippable
 
-    def get_similar(self):
+    def get_similar(self, same_kind=False):
         if self.key_item or self.rank < 0:
             return self
         candidates = [i for i in ItemObject.ranked if
                       i.rank >= 0 and not i.key_item]
+        if same_kind:
+            candidates = [i for i in candidates if all([
+                getattr(i, "is_%s" % t) == getattr(self, "is_%s" % t)
+                for t in ["weapon", "armor", "helmet", "shield", "fishing"]])]
         index = candidates.index(self)
         index = mutate_normal(index, maximum=len(candidates)-1)
         return candidates[index]
@@ -526,6 +533,20 @@ class ShopObject(TableObject):
         f.write("".join([chr(c) for c in self.contents]))
         f.close()
 
+    def mutate(self):
+        new_contents = []
+        for c in sorted(set(self.contents)):
+            while True:
+                new_item = ItemObject.get(c).get_similar(same_kind=True)
+                if new_item not in new_contents:
+                    new_contents.append(new_item)
+                    break
+        new_contents = [i.index for i in new_contents]
+        while len(new_contents) < len(self.contents):
+            new_contents.append(random.choice(new_contents))
+        assert len(new_contents) == len(self.contents)
+        self.contents = new_contents
+
 
 def get_learn_spells(filename=None):
     global g_learns
@@ -583,12 +604,26 @@ def get_shops(filename=None):
 
 
 if __name__ == "__main__":
-    filename = "bof2.smc"
-    testfile = "test.smc"
-    copyfile(filename, testfile)
-    set_global_table_filename(testfile)
-    get_learn_spells(testfile)
-    get_shops(testfile)
+    if len(argv) >= 2:
+        sourcefile = argv[1]
+        if len(argv) >= 3:
+            seed = argv[2]
+        else:
+            seed = None
+    else:
+        sourcefile = raw_input("Filename? ")
+        seed = raw_input("Seed? ")
+
+    if seed is None or seed == "":
+        seed = int(time())
+    seed = seed % (10**10)
+
+    outfile = sourcefile.split(".")
+    outfile = ".".join(outfile[:-1] + [str(seed), outfile[-1]])
+    copyfile(sourcefile, outfile)
+    set_global_table_filename(outfile)
+    get_learn_spells(outfile)
+    get_shops(outfile)
 
     all_objects = [g for g in globals().values()
                    if isinstance(g, type) and issubclass(g, TableObject)
@@ -596,81 +631,29 @@ if __name__ == "__main__":
     for ao in all_objects:
         ao.every
 
-    def hexstring(value):
-        if type(value) is str:
-            value = "".join(["{0:0>2}".format("%x" % ord(c)) for c in value])
-        elif type(value) is int:
-            value = "{0:0>2}".format("%x" % value)
-        return value
-
-    '''
-    #print "FISHCHESTS"
-    #for c in ChestObject.every[-8:]:
-    #    print c
-    #for i, m in enumerate(MonsterObject.every):
-    #    print m.display_name, ["%x" % ord(c) for c in m.unknown3]
-    #    m.unknown3 = "".join([chr(j) for j in [0x92, 0x4a, 0xfe]])
-    #    m.write_data(testfile)
-
-    for ch in CharacterObject.every:
-        a = ch.name
-        b = hexstring(ch.unknown2)
-        c = hexstring(ch.unknown1)
-        d = hexstring(ch.unknown3)
-        #d = "".join(["{0:0>2}".format("%x" % i) for i in map(ord, ch.unknown4)])
-        print "{0:4} {2:2} {1:2} {3:14}".format(a, b, c, d),
-        #print "{0:4} {2:18} {3:14}".format(a, None, c, d),
-        print "%x %x" % (ch.some_index, ch.pointer)
-
-    for i in ItemObject.every:
-        print hexstring(i.index), hexstring(i.itemtype), hexstring(i.unknown), hexstring(i.equippable), i.display_name, i.is_helmet
-        #print hexstring(i.index), hexstring(i.equippable), i.display_name
-
-    import string
-    for i in ItemObject.every:
-        if len(i.display_name) >= 2:
-            if i.display_name[-1] in string.uppercase and i.display_name[-2] in string.uppercase:
-                #print hexstring(i.itemtype), i.display_name[-2:], i.display_name
-                pass
-            else:
-                print hexstring(i.itemtype), i.display_name[-2:], i.display_name
-
-    for s in SpellObject.every:
-        print "%x" % s.index, hexstring(s.unknown1), hexstring(s.unknown2), hexstring(s.element),
-        print s.name
-
-    ryu = CharacterObject.get(0)
-    for ch in CharacterObject.every:
-        #ch.copy_data(ryu)
-        ch.some_index = ryu.some_index
-        ch.write_data()
-
-    for m in MonsterObject.every:
-        print hexstring(m.unknown), m.display_name
-    #write_learn_spells(testfile)
-
-    for l in LevelUpObject.every:
-        l.mutate()
-        l.write_data()
-
+    random.seed(seed)
+    for d in DropObject.every:
+        d.mutate()
     for c in ChestObject.every:
         c.mutate()
-        c.write_data()
-
     for d in DresserObject.every:
         d.mutate()
-        d.write_data()
-
-    for s in ShopObject:
-        s.write_data()
-
+    for m in MonsterObject.every:
+        m.mutate_stats()
+        m.mutate_treasure()
+    for i in ItemObject.every:
+        i.mutate_price()
+        i.mutate_equippable()
+    for s in ShopObject.every:
+        s.mutate()
     for c in CharacterObject.every[:9]:
         c.set_initial_equips()
+    for l in LevelUpObject.every:
+        l.mutate()
 
-    for u in UnknownObject:
-        print hexstring(u.index), hexstring(u.index >> 5), hexstring(u.unknown)
-    '''
-    for i in ItemObject.every:
-        print "%x" % i.index, i.display_name, hexstring(i.equippable)
-        i.mutate_equippable()
-        print "%x" % i.index, i.display_name, hexstring(i.equippable)
+    special_write = [LearnObject, ShopObject]
+    for ao in all_objects:
+        if ao in special_write:
+            continue
+        for o in ao.every:
+            o.write_data()
