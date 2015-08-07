@@ -61,6 +61,17 @@ class CharacterObject(TableObject):
         self.helmet = [i for i in candidates if i.is_helmet][:2][-1].index
         self.armor = [i for i in candidates if i.is_armor][:2][-1].index
 
+    def set_initial_stats(self):
+        self.level = mutate_normal(self.level, minimum=1, maximum=99)
+        self.guts = mutate_normal(self.guts, minimum=1)
+        levelup = LevelUpObject.get(self.index)
+        for attr in ["strength", "stamina", "agility", "wisdom", "luck",
+                     "max_hp", "max_ap"]:
+            value = levelup.value_at_level(attr, self.level)
+            fifty = levelup.value_at_level(50)
+            value += mutate_normal(fifty/5.0, minimum=1)
+            setattr(self, attr, value)
+
 
 class ItemObject(TableObject):
     equip_dict = {}
@@ -651,7 +662,7 @@ if __name__ == "__main__":
     for l in LevelUpObject.every:
         l.mutate()
 
-    special_write = [LearnObject, ShopObject]
+    special_write = [LearnObject]
     for ao in all_objects:
         if ao in special_write:
             continue
