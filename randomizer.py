@@ -461,6 +461,8 @@ class MonsterObject(TableObject):
 
 
 class LearnObject(TableObject):
+    done_shuffled = False
+
     def __init__(self, filename, index, pointer, endpointer):
         self.filename = filename
         self.pointer = pointer
@@ -508,6 +510,37 @@ class LearnObject(TableObject):
         f.close()
         pointer += 1
         return pointer
+
+    def mutate(self):
+        if not LearnObject.done_shuffled:
+            candidates = [l for l in LearnObject.every if l.index != 0]
+            candidates = [(l, list(l.spell_indexes), list(l.levels))
+                          for l in candidates]
+            shuffled = list(candidates)
+            random.shuffle(shuffled)
+            for a, b in zip(candidates, shuffled):
+                l, _, _ = a
+                _, spell_indexes, levels = b
+                l.spell_indexes = list(spell_indexes)
+                l.levels = list(levels)
+            LearnObject.done_shuffled = True
+
+        spell_indexes = []
+        for s in self.spells:
+            if "TimeWarp" in s.name:
+                spell_indexes.append(s.index)
+                continue
+            while True:
+                index = s.get_similar().index
+                if index not in spell_indexes:
+                    spell_indexes.append(index)
+                    break
+        assert len(spell_indexes) == len(self.spell_indexes)
+        assert len(set(spell_indexes)) == len(set(self.spell_indexes))
+
+        levels = [mutate_normal(l, minimum=1, maximum=99) for l in self.levels]
+        levels, spell_indexes = zip(*sorted(zip(levels, spell_indexes)))
+        self.levels, self.spell_indexes = levels, spell_indexes
 
 
 class ShopObject(TableObject):
@@ -661,6 +694,8 @@ if __name__ == "__main__":
         c.set_initial_equips()
     for l in LevelUpObject.every:
         l.mutate()
+    for l in LearnObject.every:
+        l.mutate()
 
     special_write = [LearnObject]
     for ao in all_objects:
@@ -668,3 +703,5 @@ if __name__ == "__main__":
             continue
         for o in ao.every:
             o.write_data()
+
+    write_learn_spells(outfile)
