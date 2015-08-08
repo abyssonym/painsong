@@ -49,6 +49,31 @@ class SpellObject(TableObject):
 
 
 class CharacterObject(TableObject):
+    stattrs = ["strength", "stamina", "agility", "wisdom", "luck",
+               "max_hp", "max_ap"]
+
+    def __repr__(self):
+        s = self.display_name + "\n"
+        levelup = LevelUpObject.get(self.index)
+        levels = [10, 20, 30, 50]
+        if self.level not in levels:
+            levels = [self.level] + levels
+        for level in levels:
+            if level < self.level:
+                continue
+            s2 = ("lv{0:2} hp:{6:3} ap:{7:3} str:{1:3} sta:{2:3} agi:{3:3} "
+                  "wis:{4:3} luc:{5:3}")
+            values = [levelup.value_at_level(attr, level) -
+                      levelup.value_at_level(attr, self.level) +
+                      getattr(self, attr) for attr in self.stattrs]
+            values = [level] + values
+            s2 = s2.format(*values)
+            s += s2 + "\n"
+        spellup = LearnObject.get(self.index)
+        for level, spell in spellup.pairs:
+            s += "lv{0:2} {1}\n".format(level, spell.display_name)
+        return s.strip()
+
     def set_initial_equips(self):
         if self.index == 8:
             index = 7 - 4
@@ -63,13 +88,20 @@ class CharacterObject(TableObject):
 
     def set_initial_stats(self):
         self.level = mutate_normal(self.level, minimum=1, maximum=99)
+        if self.index == 8:
+            for attr in self.stattrs:
+                value = getattr(self, attr)
+                value = random.randint(1, value)
+                setattr(self, attr, value)
+            return
+
         self.guts = mutate_normal(self.guts, minimum=1)
         levelup = LevelUpObject.get(self.index)
-        for attr in ["strength", "stamina", "agility", "wisdom", "luck",
-                     "max_hp", "max_ap"]:
+        for attr in self.stattrs:
             value = levelup.value_at_level(attr, self.level)
-            fifty = levelup.value_at_level(50)
+            fifty = levelup.value_at_level(attr, 50)
             value += mutate_normal(fifty/5.0, minimum=1)
+            value = min(value, 0xFF)
             setattr(self, attr, value)
 
 
@@ -275,6 +307,14 @@ class LevelUp:
         return s
 
     @property
+    def max_hp(self):
+        return self.hp
+
+    @property
+    def max_ap(self):
+        return self.ap
+
+    @property
     def block(self):
         block = ""
         for a, b in self.pairs:
@@ -286,6 +326,12 @@ class LevelUp:
 
 
 class LevelUpObject(TableObject):
+    done_shuffled = False
+    maxdict = {"hp": 999, "ap": 511,
+               "strength": 255, "agility": 511, "stamina": 255,
+               "wisdom": 255, "luck": 255
+               }
+
     def read_data(self, filename=None, pointer=None):
         super(LevelUpObject, self).read_data(filename, pointer=pointer)
         self.levels = {}
@@ -297,8 +343,8 @@ class LevelUpObject(TableObject):
             self.levels[level_index] = lv
 
     def write_data(self, filename=None, pointer=None):
-        if self.index == 8:
-            print "WARNING! This will overwrite other data!"
+        if self.index >= 8:
+            return
         self.data = ""
         for i in xrange(98):
             level_index = i + 2
@@ -315,13 +361,24 @@ class LevelUpObject(TableObject):
             setattr(level, attr, 0)
 
     def mutate(self):
-        maxdict = {"hp": 999, "ap": 511,
-                   "strength": 255, "agility": 511, "stamina": 255,
-                   "wisdom": 255, "luck": 255
-                   }
-        for attr in sorted(maxdict):
+        if not LevelUpObject.done_shuffled:
+            LevelUpObject.done_shuffled = True
+            levelups = [l for l in LevelUpObject.every if l.index <= 7]
+            for attr in sorted(self.maxdict):
+                ups = [[getattr(l.levels[i], attr) for i in xrange(2, 100)]
+                       for l in levelups]
+                random.shuffle(ups)
+                for l, us in zip(levelups, ups):
+                    for i, u in enumerate(us):
+                        setattr(l.levels[i+2], attr, u)
+
+        return
+        if self.index >= 8:
+            return
+
+        for attr in sorted(self.maxdict):
             value = self.value_at_level(attr, 50)
-            maxval = maxdict[attr]
+            maxval = self.maxdict[attr]
             value = mutate_normal(value, minimum=1, maximum=maxval,
                                   smart=False)
             targets = {1: 0, 50: value}
@@ -397,11 +454,10 @@ class MonsterObject(TableObject):
     minmax_dict = {}
     maxdict = {"hp": 65535, "ap": 65535, "luck": 255,
                "atp": 511, "dfp": 511,
-               "agl": 511, "ms": 7, "immunity": 255,
-               "xp": 65535, "gp": 65535}
+               "agl": 511, "ms": 7, "xp": 65535, "gp": 65535}
 
     def __repr__(self):
-        unknown3 = " ".join(["{0:02x}".format(ord(c)) for c in self.unknown3])
+        unknown3 = " ".join(["{0:02x}".format(ord(c)) for c in self.unknown])
         s = "{0:02x} {1} {2}".format(
             self.index, unknown3, self.display_name)
         return s
@@ -416,7 +472,7 @@ class MonsterObject(TableObject):
             return -1
 
         attrs = ["hp", "ap", "luck", "atp",
-                 "dfp", "agl", "ms", "immunity"]
+                 "dfp", "agl", "ms"]
         if not self.minmax_dict:
             for attr in attrs:
                 values = [getattr(m, attr) for m in MonsterObject.every]
@@ -446,17 +502,16 @@ class MonsterObject(TableObject):
 
     def mutate_stats(self):
         ranked = MonsterObject.ranked
-        if self.immunity > 0x40:
-            modifactor = (ranked.index(self) / float(len(ranked)-1)) / 2.0
-            assert modifactor <= 0.50
-        else:
-            modifactor = 0
+        modifactor = (ranked.index(self) / float(len(ranked)-1)) / 2.0
+        assert modifactor <= 0.50
         for attr in sorted(self.maxdict):
             maxval = self.maxdict[attr]
             value = getattr(self, attr)
             if modifactor > 0:
                 value = int(round(value * (1 + modifactor)))
             value = mutate_normal(value, maximum=maxval)
+            if attr == "immunity":
+                continue
             setattr(self, attr, value)
 
 
@@ -538,7 +593,16 @@ class LearnObject(TableObject):
         assert len(spell_indexes) == len(self.spell_indexes)
         assert len(set(spell_indexes)) == len(set(self.spell_indexes))
 
-        levels = [mutate_normal(l, minimum=1, maximum=99) for l in self.levels]
+        first_real_level = min([l for l in self.levels if l > 1])
+        levels = [l if l > 1 else
+                  random.randint(1, first_real_level) for l in self.levels]
+        levels = [mutate_normal(l, minimum=1, maximum=99) for l in levels]
+        for (i, l) in enumerate(levels):
+            while l > 1 and levels.count(l) > 1:
+                l += 1
+                levels[i] = l
+        real_levels = [l for l in levels if l > 1]
+        assert len(real_levels) == len(set(real_levels))
         levels, spell_indexes = zip(*sorted(zip(levels, spell_indexes)))
         self.levels, self.spell_indexes = levels, spell_indexes
 
@@ -651,7 +715,7 @@ if __name__ == "__main__":
     if len(argv) >= 2:
         sourcefile = argv[1]
         if len(argv) >= 3:
-            seed = argv[2]
+            seed = int(argv[2])
         else:
             seed = None
     else:
@@ -663,7 +727,9 @@ if __name__ == "__main__":
     seed = seed % (10**10)
 
     outfile = sourcefile.split(".")
-    outfile = ".".join(outfile[:-1] + [str(seed), outfile[-1]])
+    outfile = outfile[:-1] + [str(seed), outfile[-1]]
+    txtfile = ".".join(outfile[:-1] + ["txt"])
+    outfile = ".".join(outfile)
     copyfile(sourcefile, outfile)
     set_global_table_filename(outfile)
     get_learn_spells(outfile)
@@ -678,24 +744,35 @@ if __name__ == "__main__":
     random.seed(seed)
     for d in DropObject.every:
         d.mutate()
+    random.seed(seed)
     for c in ChestObject.every:
         c.mutate()
+    random.seed(seed)
     for d in DresserObject.every:
         d.mutate()
+    random.seed(seed)
     for m in MonsterObject.every:
         m.mutate_stats()
         m.mutate_treasure()
+    random.seed(seed)
     for i in ItemObject.every:
         i.mutate_price()
         i.mutate_equippable()
+    random.seed(seed)
     for s in ShopObject.every:
         s.mutate()
-    for c in CharacterObject.every[:9]:
-        c.set_initial_equips()
+    random.seed(seed)
     for l in LevelUpObject.every:
         l.mutate()
+    random.seed(seed)
+    for c in CharacterObject.every:
+        c.set_initial_equips()
+        c.set_initial_stats()
+    random.seed(seed)
     for l in LearnObject.every:
         l.mutate()
+
+    # NO RANDOMIZATION PAST THIS LINE
 
     special_write = [LearnObject]
     for ao in all_objects:
@@ -705,3 +782,13 @@ if __name__ == "__main__":
             o.write_data()
 
     write_learn_spells(outfile)
+
+    s = ""
+    for ao in sorted(all_objects, key=lambda a: a.__name__):
+        s += ao.__name__.upper() + "\n"
+        s += ao.catalogue
+        s += "\n\n"
+    s = s.strip()
+    f = open(txtfile, "w+")
+    f.write(s + "\n")
+    f.close()
