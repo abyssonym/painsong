@@ -17,10 +17,48 @@ spell_level_file = path.join(tblpath, "spell_level_table.txt")
 
 g_learns = None
 g_shops = None
+RANDOMIZE = True
 
 
 class UnknownObject(TableObject):
     pass
+
+
+class InitialObject(TableObject):
+    def __repr__(self):
+        return "%x %x" % (self.addr, self.value)
+
+    @property
+    def is_learned_spell(self):
+        return 0x5400 <= self.addr <= 0x5540
+
+    @property
+    def spell(self):
+        if not self.is_learned_spell:
+            return None
+        return SpellObject.get(self.value)
+
+    @property
+    def char(self):
+        if not self.is_learned_spell:
+            return None
+        char_id = (self.addr >> 5 & 0xf) - 1
+        return CharacterObject.get(char_id)
+
+    def set_char(self, char_id):
+        if not self.spell:
+            raise Exception("Not an initially learned spell.")
+
+        if not isinstance(char_id, int):
+            char_id = char_id.index
+        char_id += 1
+        self.addr = self.addr & 0xFE1F
+        self.addr |= (char_id << 5)
+
+    def set_slot(self, index):
+        assert index == index & 0x1f
+        self.addr = (self.addr >> 5) << 5
+        self.addr |= index
 
 
 class SpellObject(TableObject):
@@ -53,6 +91,8 @@ class CharacterObject(TableObject):
                "max_hp", "max_ap"]
 
     def __repr__(self):
+        if self.index > 8:
+            return ""
         s = self.display_name + "\n"
         levelup = LevelUpObject.get(self.index)
         levels = [10, 20, 30, 50]
@@ -75,7 +115,9 @@ class CharacterObject(TableObject):
         return s.strip()
 
     def set_initial_equips(self):
-        if self.index == 8:
+        if self.index > 8:
+            return
+        elif self.index == 8:
             index = 7 - 4
         else:
             index = 7 - self.index
@@ -87,6 +129,8 @@ class CharacterObject(TableObject):
         self.armor = [i for i in candidates if i.is_armor][:2][-1].index
 
     def set_initial_stats(self):
+        if self.index > 8:
+            return
         self.level = mutate_normal(self.level, minimum=1, maximum=99)
         if self.index == 8:
             for attr in self.stattrs:
@@ -132,6 +176,12 @@ class ItemObject(TableObject):
         for sx in self.suffixes:
             if self.display_name.endswith(sx):
                 return sx
+
+    @property
+    def is_equippable(self):
+        return any([getattr(self, "is_%s" % attr) for attr in
+                    ["dragon", "weapon", "accessory", "armor",
+                     "shield", "helmet"]])
 
     @property
     def is_dragon(self):
@@ -189,7 +239,7 @@ class ItemObject(TableObject):
     def key_item(self):
         return self.get_bit("cant_be_sold") and not self.equippable
 
-    def get_similar(self, same_kind=False):
+    def get_similar(self, same_kind=False, similar_kind=False):
         if self.key_item or self.rank < 0:
             return self
         candidates = [i for i in ItemObject.ranked if
@@ -197,7 +247,12 @@ class ItemObject(TableObject):
         if same_kind:
             candidates = [i for i in candidates if all([
                 getattr(i, "is_%s" % t) == getattr(self, "is_%s" % t)
-                for t in ["weapon", "armor", "helmet", "shield", "fishing"]])]
+                for t in ["weapon", "armor", "helmet",
+                          "shield", "fishing", "accessory"]])]
+        elif similar_kind:
+            candidates = [i for i in candidates if all([
+                getattr(i, "is_%s" % t) == getattr(self, "is_%s" % t)
+                for t in ["equippable", "fishing"]])]
         index = candidates.index(self)
         index = mutate_normal(index, maximum=len(candidates)-1)
         return candidates[index]
@@ -425,7 +480,7 @@ class TreasureObject(TableObject):
 
 class ChestObject(TreasureObject):
     def mutate(self):
-        self.contents = self.item.get_similar().index
+        self.contents = self.item.get_similar(similar_kind=True).index
 
 
 class DresserObject(TreasureObject):
@@ -445,7 +500,7 @@ class DresserObject(TreasureObject):
             self.contents = self.addrdict[self.address]
             return
 
-        self.contents = self.item.get_similar().index
+        self.contents = self.item.get_similar(similar_kind=True).index
         assert self.contents > 0
         self.addrdict[self.address] = self.contents
 
@@ -741,36 +796,37 @@ if __name__ == "__main__":
     for ao in all_objects:
         ao.every
 
-    random.seed(seed)
-    for d in DropObject.every:
-        d.mutate()
-    random.seed(seed)
-    for c in ChestObject.every:
-        c.mutate()
-    random.seed(seed)
-    for d in DresserObject.every:
-        d.mutate()
-    random.seed(seed)
-    for m in MonsterObject.every:
-        m.mutate_stats()
-        m.mutate_treasure()
-    random.seed(seed)
-    for i in ItemObject.every:
-        i.mutate_price()
-        i.mutate_equippable()
-    random.seed(seed)
-    for s in ShopObject.every:
-        s.mutate()
-    random.seed(seed)
-    for l in LevelUpObject.every:
-        l.mutate()
-    random.seed(seed)
-    for c in CharacterObject.every:
-        c.set_initial_equips()
-        c.set_initial_stats()
-    random.seed(seed)
-    for l in LearnObject.every:
-        l.mutate()
+    if RANDOMIZE:
+        random.seed(seed)
+        for d in DropObject.every:
+            d.mutate()
+        random.seed(seed)
+        for c in ChestObject.every:
+            c.mutate()
+        random.seed(seed)
+        for d in DresserObject.every:
+            d.mutate()
+        random.seed(seed)
+        for m in MonsterObject.every:
+            m.mutate_stats()
+            m.mutate_treasure()
+        random.seed(seed)
+        for i in ItemObject.every:
+            i.mutate_price()
+            i.mutate_equippable()
+        random.seed(seed)
+        for s in ShopObject.every:
+            s.mutate()
+        random.seed(seed)
+        for l in LevelUpObject.every:
+            l.mutate()
+        random.seed(seed)
+        for c in CharacterObject.every:
+            c.set_initial_equips()
+            c.set_initial_stats()
+        random.seed(seed)
+        for l in LearnObject.every:
+            l.mutate()
 
     # NO RANDOMIZATION PAST THIS LINE
 
@@ -780,6 +836,13 @@ if __name__ == "__main__":
             continue
         for o in ao.every:
             o.write_data()
+
+    ryu = CharacterObject.get(0)
+    ryu.some_index = 9
+    ryu.write_data(pointer=ryu.pointer + 0x240)
+    bow = CharacterObject.get(1)
+    bow.some_index = 0xa
+    bow.write_data(pointer=bow.pointer + 0x240)
 
     write_learn_spells(outfile)
 
