@@ -266,6 +266,10 @@ class ItemObject(TableObject):
         return self.itemtype in [0xf7]
 
     @property
+    def is_booster(self):
+        return self.index in range(0xd, 0x13)
+
+    @property
     def rank(self):
         if self.index == 0x3e:
             rank = 8000
@@ -283,6 +287,9 @@ class ItemObject(TableObject):
 
     @property
     def key_item(self):
+        key_item_ids = [0x89]
+        if self.index in key_item_ids:
+            return True
         return self.get_bit("cant_be_sold") and not self.equippable
 
     def get_similar(self, same_kind=False, similar_kind=False):
@@ -304,6 +311,8 @@ class ItemObject(TableObject):
         return candidates[index]
 
     def mutate_price(self):
+        if self.is_booster:
+            self.price = 4000
         if self.price <= 14:
             return
         price = mutate_normal(self.price, maximum=65000)
@@ -612,9 +621,10 @@ class MonsterObject(TableObject):
         for attr in sorted(self.maxdict):
             maxval = self.maxdict[attr]
             value = getattr(self, attr)
+            minimum = min(1, value)
             if modifactor > 0:
                 value = int(round(value * (1 + modifactor)))
-            value = mutate_normal(value, maximum=maxval)
+            value = mutate_normal(value, minimum=minimum, maximum=maxval)
             if attr == "immunity":
                 continue
             setattr(self, attr, value)
@@ -754,7 +764,7 @@ class ShopObject(TableObject):
         new_contents = []
         for c in sorted(set(self.contents)):
             while True:
-                new_item = ItemObject.get(c).get_similar(same_kind=True)
+                new_item = ItemObject.get(c).get_similar(similar_kind=True)
                 if new_item not in new_contents:
                     new_contents.append(new_item)
                     break
@@ -788,7 +798,7 @@ def get_learn_spells(filename=None):
 def write_learn_spells(filename):
     f = open(filename, 'r+b')
     pointer = 0x5aa00
-    subpointer = pointer + len(LearnObject.every)
+    subpointer = pointer + (len(LearnObject.every)*2)
     for l in LearnObject.every:
         f.seek(pointer + (2*l.index))
         write_multi(f, subpointer-0x5aa00, 2)
