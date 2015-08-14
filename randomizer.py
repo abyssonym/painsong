@@ -156,7 +156,7 @@ class CharacterObject(TableObject):
             index = 7 - self.index
         mask = 1 << index
         candidates = [i for i in ItemObject.ranked if i.equippable & mask
-                      and i.equippable != 0xFF]
+                      and i.equippable != 0xFF and i.rank > 0]
         for itemtype in ["weapon", "shield", "helmet", "armor"]:
             typecands = [i for i in candidates
                          if getattr(i, "is_%s" % itemtype)]
