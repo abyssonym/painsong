@@ -126,11 +126,15 @@ class CharacterObject(TableObject):
         else:
             index = 7 - self.index
         mask = 1 << index
-        candidates = [i for i in ItemObject.ranked if i.equippable & mask]
-        self.weapon = [i for i in candidates if i.is_weapon][:2][-1].index
-        self.shield = [i for i in candidates if i.is_shield][:2][-1].index
-        self.helmet = [i for i in candidates if i.is_helmet][:2][-1].index
-        self.armor = [i for i in candidates if i.is_armor][:2][-1].index
+        candidates = [i for i in ItemObject.ranked if i.equippable & mask
+                      and i.equippable != 0xFF]
+        for itemtype in ["weapon", "shield", "helmet", "armor"]:
+            typecands = [i for i in candidates
+                         if getattr(i, "is_%s" % itemtype)]
+            if typecands:
+                setattr(self, itemtype, typecands[0].index)
+            else:
+                setattr(self, itemtype, 0)
 
     def set_initial_stats(self):
         if self.index > 8:
@@ -174,6 +178,15 @@ class ItemObject(TableObject):
         assert sx not in suffix_dict
         suffix_dict[sx] = sorted([key for key, vals in suffix_dict.items()
                                   if sx in vals])
+
+    def __repr__(self):
+        s = "%x %s (%s)" % (self.index, self.display_name, self.price)
+        if self.is_equippable:
+            s += ": "
+            for i in xrange(8):
+                if self.equippable & (1 << (7-i)):
+                    s += " %s" % CharacterObject.get(i).display_name
+        return s
 
     @property
     def suffix(self):
@@ -321,6 +334,10 @@ class ItemObject(TableObject):
 
 
 class DropObject(TableObject):
+    def __repr__(self):
+        s = "%x " % self.index
+        return s + ", ".join([i.display_name for i in self.items])
+
     @property
     def items(self):
         return ItemObject.get(self.common), ItemObject.get(self.rare)
@@ -468,7 +485,7 @@ class TreasureObject(TableObject):
     @property
     def display_name(self):
         try:
-            itemname = ItemObject.get(self.contents)
+            itemname = ItemObject.get(self.contents).display_name
         except IndexError:
             itemname = "UNKNOWN"
         return itemname
@@ -493,7 +510,7 @@ class DresserObject(TreasureObject):
     def __repr__(self):
         contents = self.contents
         try:
-            itemname = ItemObject.get(contents)
+            itemname = ItemObject.get(contents).display_name
         except IndexError:
             itemname = "UNKNOWN"
         return "%s %x %x %s" % (self.index, self.pointer, self.address,
