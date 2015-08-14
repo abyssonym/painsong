@@ -287,7 +287,7 @@ class ItemObject(TableObject):
 
     @property
     def key_item(self):
-        key_item_ids = [0x89]
+        key_item_ids = [0x57]
         if self.index in key_item_ids:
             return True
         return self.get_bit("cant_be_sold") and not self.equippable
