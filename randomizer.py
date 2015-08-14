@@ -45,6 +45,10 @@ class InitialObject(TableObject):
         char_id = (self.addr >> 5 & 0xf) - 1
         return CharacterObject.get(char_id)
 
+    @property
+    def catalogue_index(self):
+        return self.addr, self.index
+
     def set_char(self, char_id):
         if not self.spell:
             raise Exception("Not an initially learned spell.")
@@ -658,8 +662,12 @@ class LearnObject(TableObject):
                 levels[i] = l
         real_levels = [l for l in levels if l > 1]
         assert len(real_levels) == len(set(real_levels))
-        levels, spell_indexes = zip(*sorted(zip(levels, spell_indexes)))
         self.levels, self.spell_indexes = levels, spell_indexes
+        self.sort_spells()
+
+    def sort_spells(self):
+        self.levels, self.spell_indexes = zip(
+            *sorted(zip(self.levels, self.spell_indexes)))
 
 
 class ShopObject(TableObject):
@@ -740,6 +748,43 @@ def write_learn_spells(filename):
         write_multi(f, subpointer-0x5aa00, 2)
         subpointer = l.write_data(filename, subpointer)
     f.close()
+
+
+def fix_initial_spells():
+    spares = [i for i in InitialObject.every if i.spell]
+    to_make = []
+    for l in LearnObject.every:
+        character = CharacterObject.get(l.index)
+        for level, spell in l.pairs:
+            if level <= character.level:
+                to_make.append((character.index, level, spell.index))
+
+    charcounter = {}
+    random.shuffle(to_make)
+    for (i, spare) in enumerate(spares):
+        if to_make:
+            c_index, level, s_index = to_make.pop()
+            if c_index not in charcounter:
+                charcounter[c_index] = 0
+            else:
+                charcounter[c_index] += 1
+        spare.value = s_index
+        spare.set_char(c_index)
+        spare.set_slot(charcounter[c_index])
+
+    for c_index, level, s_index in to_make:
+        learn = LearnObject.get(c_index)
+        character = CharacterObject.get(c_index)
+        while True:
+            level += 1
+            if level > character.level and level not in learn.levels:
+                break
+        for (i, (oldlevel, spell)) in enumerate(learn.pairs):
+            if spell.index == s_index:
+                learn.levels = list(learn.levels)
+                learn.levels[i] = level
+                learn.sort_spells()
+                break
 
 
 def get_shops(filename=None):
@@ -827,6 +872,7 @@ if __name__ == "__main__":
         random.seed(seed)
         for l in LearnObject.every:
             l.mutate()
+        fix_initial_spells()
 
     # NO RANDOMIZATION PAST THIS LINE
 

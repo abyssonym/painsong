@@ -99,6 +99,10 @@ class TableObject(object):
     def rank(self):
         return self.index
 
+    @property
+    def catalogue_index(self):
+        return self.index
+
     @classproperty
     def ranked(cls):
         return sorted(cls.every, key=lambda c: (c.rank, c.index))
@@ -201,7 +205,7 @@ class TableObject(object):
     @classproperty
     def catalogue(self):
         logs = []
-        for obj in self.every:
+        for obj in sorted(self.every, key=lambda o: o.catalogue_index):
             logs.append(obj.log.strip())
 
         if any(["\n" in log for log in logs]):
