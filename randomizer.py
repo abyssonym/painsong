@@ -1,6 +1,7 @@
-from tablereader import TableObject, set_global_table_filename
-from utils import (read_multi, write_multi, classproperty, mutate_normal,
-                   hexstring, utilrandom as random)
+from randomtools.tablereader import TableObject, set_global_table_filename
+from randomtools.utils import (
+    read_multi, write_multi, classproperty, mutate_normal, hexstring,
+    utilrandom as random)
 from shutil import copyfile
 from os import path, remove
 from sys import argv
