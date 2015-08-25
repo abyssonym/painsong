@@ -1,9 +1,10 @@
 from randomtools.tablereader import TableObject, set_global_table_filename
 from randomtools.utils import (
     read_multi, write_multi, classproperty, mutate_normal, hexstring,
+    rewrite_snes_title, rewrite_snes_checksum,
     utilrandom as random)
 from shutil import copyfile
-from os import path, remove
+from os import path
 from sys import argv
 from time import time
 
@@ -20,34 +21,6 @@ g_learns = None
 g_shops = None
 RANDOMIZE = True
 VERSION = 1
-
-
-def rewrite_title(text):
-    f = open(outfile, 'r+b')
-    while len(text) < 20:
-        text += ' '
-    if len(text) > 20:
-        text = text[:19] + "?"
-    f.seek(0xFFC0)
-    f.write(text)
-    f.seek(0xFFDB)
-    f.write(chr(int(VERSION)))
-    f.close()
-
-
-def rewrite_checksum(filename=None):
-    if filename is None:
-        filename = outfile
-    MEGABIT = 0x20000
-    f = open(filename, 'r+b')
-    subsums = [sum(map(ord, f.read(MEGABIT))) for _ in xrange(24)]
-    subsums += subsums[-8:]
-    checksum = sum(subsums) & 0xFFFF
-    f.seek(0xFFDE)
-    write_multi(f, checksum, length=2)
-    f.seek(0xFFDC)
-    write_multi(f, checksum ^ 0xFFFF, length=2)
-    f.close()
 
 
 class UnknownObject(TableObject):
@@ -949,8 +922,8 @@ if __name__ == "__main__":
 
     write_learn_spells(outfile)
 
-    rewrite_title("BOF2-R %s" % seed)
-    rewrite_checksum(outfile)
+    rewrite_snes_title("BOF2-R %s" % seed, outfile, VERSION)
+    rewrite_snes_checksum(outfile)
 
     s = ""
     for ao in sorted(all_objects, key=lambda a: a.__name__):
