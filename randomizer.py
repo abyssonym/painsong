@@ -116,6 +116,11 @@ class CharacterObject(TableObject):
             values = [level] + values
             s2 = s2.format(*values)
             s += s2 + "\n"
+        inits = [i for i in InitialObject.every
+                 if i.char == self and i.is_learned_spell]
+        inits = sorted(set([i.spell.display_name for i in inits]))
+        if inits:
+            s += "Starts with %s\n" % ", ".join(inits)
         spellup = LearnObject.get(self.index)
         for level, spell in spellup.pairs:
             s += "lv{0:2} {1}\n".format(level, spell.display_name)
@@ -279,7 +284,7 @@ class ItemObject(TableObject):
         elif similar_kind:
             candidates = [i for i in candidates if all([
                 getattr(i, "is_%s" % t) == getattr(self, "is_%s" % t)
-                for t in ["equippable", "fishing"]])]
+                for t in ["equippable", "fishing", "accessory"]])]
         index = candidates.index(self)
         index = mutate_normal(index, maximum=len(candidates)-1)
         return candidates[index]
@@ -309,7 +314,8 @@ class ItemObject(TableObject):
                     self.equip_dict[i.suffix].append(i.equippable)
                 else:
                     suffix = random.choice(self.suffix_dict[i.itemtype])
-                    self.equip_dict[suffix].append(i.equippable)
+                    if i.equippable != 0xFF:
+                        self.equip_dict[suffix].append(i.equippable)
 
         if self.is_accessory:
             while random.randint(1, 25) == 25:
@@ -630,6 +636,15 @@ class LearnObject(TableObject):
     def pairs(self):
         return zip(self.levels, self.spells)
 
+    def set_pairs(self, pairs):
+        if not pairs:
+            self.levels = []
+            self.spell_indexes = []
+            return
+        self.levels, self.spell_indexes = zip(*pairs)
+        if self.spell_indexes and not isinstance(self.spell_indexes[0], int):
+            self.spell_indexes = [s.index for s in self.spell_indexes]
+
     def read_data(self, filename, pointer, endpointer):
         f = open(filename, 'r+b')
         f.seek(pointer)
@@ -801,6 +816,12 @@ def fix_initial_spells():
         spare.value = s_index
         spare.set_char(c_index)
         spare.set_slot(charcounter[c_index])
+
+    for c_index in range(9):
+        learn = LearnObject.get(c_index)
+        character = CharacterObject.get(c_index)
+        learn.set_pairs([(l, s) for (l, s) in learn.pairs
+                         if l > character.level])
 
     for c_index, level, s_index in to_make:
         learn = LearnObject.get(c_index)
