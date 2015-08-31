@@ -23,8 +23,22 @@ RANDOMIZE = True
 VERSION = 1
 
 
-class UnknownObject(TableObject):
-    pass
+class FormationObject(TableObject):
+    def __repr__(self):
+        s = "%x %s: " % (self.index, hexstring(self.unknown))
+        s += ", ".join(["%x %s" % (e.index, e.display_name)
+                        for e in self.enemies])
+        return s
+
+    @property
+    def enemies(self):
+        enemies = []
+        for eid in self.enemy_ids:
+            if eid == 0xFF:
+                continue
+            m = MonsterObject.get(eid)
+            enemies.append(m)
+        return enemies
 
 
 class InitialObject(TableObject):
@@ -926,6 +940,9 @@ if __name__ == "__main__":
         fix_initial_spells()
 
     # NO RANDOMIZATION PAST THIS LINE
+
+    for m in MonsterObject.every:
+        m.hp = 1
 
     special_write = [LearnObject]
     for ao in all_objects:
