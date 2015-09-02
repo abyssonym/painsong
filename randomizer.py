@@ -877,7 +877,8 @@ class MonsterObject(TableObject):
         self.xp *= 2
         self.gp *= 2
         ranked = MonsterObject.ranked
-        modifactor = (ranked.index(self) / float(len(ranked)-1)) / 2.0
+        modifactor = (ranked.index(self) / float(len(ranked)-1))
+        modifactor = (modifactor ** 2) / 2.0
         assert modifactor <= 0.50
         for attr in sorted(self.maxdict):
             maxval = self.maxdict[attr]
