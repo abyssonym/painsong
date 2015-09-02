@@ -76,7 +76,7 @@ c 40 Cure X
 4a 10 Herb
 4b 1 Recover
 4c -1 IdiotLzr
-4d 1 Hunt
+4d -1 Hunt
 4e 12 Whodini
 4f -1 Anfini
 50 -1 BoneLzr

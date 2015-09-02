@@ -968,11 +968,11 @@ class LearnObject(TableObject):
 
         spell_indexes = []
         for s in self.spells:
-            if "TimeWarp" in s.name:
-                spell_indexes.append(s.index)
-                continue
             while True:
+                BANNED_INDEXES = [0x1e, 0x1f, 0x20]
                 index = s.get_similar().index
+                if index in BANNED_INDEXES:
+                    continue
                 if index not in spell_indexes:
                     spell_indexes.append(index)
                     break
@@ -1078,7 +1078,12 @@ def write_learn_spells(filename):
 
 
 def fix_initial_spells():
+    fixed = [(0, 0, 0x20),
+             (0, 0, 0x1f),
+             (0, 0, 0x1e),
+             ]
     spares = [i for i in InitialObject.every if i.spell]
+    spares = sorted(spares, key=lambda i: i.addr)
     to_make = []
     for l in LearnObject.every:
         character = CharacterObject.get(l.index)
@@ -1088,9 +1093,14 @@ def fix_initial_spells():
 
     charcounter = {}
     random.shuffle(to_make)
+    to_make.extend(reversed(fixed))
     for (i, spare) in enumerate(spares):
         if to_make:
             c_index, level, s_index = to_make.pop()
+            if (c_index, level, s_index) not in fixed:
+                assert not fixed
+            else:
+                fixed.remove((c_index, level, s_index))
             if c_index not in charcounter:
                 charcounter[c_index] = 0
             else:
@@ -1118,6 +1128,11 @@ def fix_initial_spells():
                 learn.levels[i] = level
                 learn.sort_spells()
                 break
+
+
+def set_warps_free():
+    for index in [0x1e, 0x1f, 0x20]:
+        SpellObject.get(index).cost = 0
 
 
 def get_shops(filename=None):
@@ -1234,6 +1249,7 @@ if __name__ == "__main__":
         for l in LearnObject.every:
             l.mutate()
         fix_initial_spells()
+        set_warps_free()
 
     # NO RANDOMIZATION PAST THIS LINE
 
