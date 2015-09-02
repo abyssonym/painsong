@@ -874,6 +874,8 @@ class MonsterObject(TableObject):
         self.treasure_class = mutate_normal(self.treasure_class, maximum=6)
 
     def mutate_stats(self):
+        self.xp *= 2
+        self.gp *= 2
         ranked = MonsterObject.ranked
         modifactor = (ranked.index(self) / float(len(ranked)-1)) / 2.0
         assert modifactor <= 0.50
