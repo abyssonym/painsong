@@ -21,6 +21,271 @@ g_learns = None
 g_shops = None
 RANDOMIZE = True
 VERSION = 1
+ELEMENTS = ["fire", "water", "wind", "earth", "holy", "dark"]
+AFFINITIES = ["Off", "Def", "Vig", "Wis", "mAP"]
+DONE_AFFINITIES = []
+CHAOS_FUSIONS = [0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe, 0x10, 0x12]
+SUPER_FUSIONS = [0x16, 0x18, 0x1a, 0x1c, 0x1e, 0x20, 0x22, 0x24, 0x26]
+
+
+class ShamanCompat():
+    allshamans = {}
+
+    def __init__(self, element):
+        assert element not in self.allshamans
+        self.allshamans[element] = self
+        self.element = element
+        self.compatibility = {}
+
+    @classmethod
+    def get(cls, element):
+        return cls.allshamans[element]
+
+    @classproperty
+    def all_elements(cls):
+        return [cls.allshamans[key] for key in ELEMENTS]
+
+    def generate_compatibility(self):
+        for element in ELEMENTS:
+            if element == self.element:
+                self.compatibility[element] = None
+                continue
+            scp = ShamanCompat.get(element)
+            if self.element in scp.compatibility:
+                self.compatibility[element] = scp.compatibility[self.element]
+            else:
+                value = random.randint(0, 100) / 100.0
+                self.compatibility[element] = value
+
+        for i in range(0, 8):
+            if i in self.compatibility:
+                continue
+            self.compatibility[i] = random.randint(0, 100) / 100.0
+
+        self.affinities = list(AFFINITIES)
+        while True:
+            random.shuffle(self.affinities)
+            if (len(DONE_AFFINITIES) >= 5
+                    or self.affinities[0] not in DONE_AFFINITIES):
+                DONE_AFFINITIES.append(self.affinities[0])
+                break
+
+    def get_compatibility(self, other):
+        if isinstance(other, ShamanCompat):
+            other = other.element
+        elif isinstance(other, CharacterObject):
+            other = other.index
+        return self.compatibility[other]
+
+    def __repr__(self):
+        s = "%s SHAMAN COMPATIBILITY" % self.element.upper()
+        s += "\n" + " ".join(self.affinities)
+        for element in ELEMENTS:
+            if element in ["fire", "earth"]:
+                s = s.strip()
+                s += "\n"
+            if element == self.element:
+                s += "{0:5}: --   ".format(element)
+                continue
+            value = int(round(self.compatibility[element] * 100))
+            s += "{0:5}:{1: >3}   ".format(element, value)
+        for i in range(0, 8):
+            name = CharacterObject.get(i).display_name
+            if name in ["Ryu", "Nina"]:
+                s = s.strip()
+                s += "\n"
+            value = int(round(self.compatibility[i] * 100))
+            s += "{0:4}:{1: >3}   ".format(name, value)
+        return s.strip()
+
+
+for e in ELEMENTS:
+    ShamanCompat(e)
+
+
+class ComboObject(TableObject):
+    elements = ELEMENTS
+    shamans = list(enumerate(elements))
+    shamans = dict(shamans + [(b, a) for (a, b) in shamans])
+    combos = [(e, None) for e in elements]
+    for i in xrange(5):
+        head, tail = elements[i], elements[i+1:]
+        for e in tail:
+            combos.append((head, e))
+    combos = list(enumerate(combos))
+    combos = (combos + [((a, b), i) for (i, (a, b)) in combos]
+              + [((b, a), i) for (i, (a, b)) in combos])
+    combos = dict(combos)
+
+    def nullify(self, i):
+        self.nullified.append(i)
+        self.fusions[i] = 0
+
+    def get_compatibilities(self, i):
+        a, b = self.calculate_shamans(i)
+        a = ShamanCompat.get(a)
+        c = CharacterObject.get(self.index)
+        compatibilities = []
+        compatibilities.append(a.get_compatibility(c))
+        if b is not None:
+            b = ShamanCompat.get(b)
+            compatibilities.append(b.get_compatibility(c))
+            compatibilities.append(b.get_compatibility(a))
+        return compatibilities
+
+    def get_all_boosts(self):
+        if not hasattr(self, "nullified"):
+            self.nullified = []
+        for i, _ in enumerate(self.fusions):
+            self.get_boosts(i)
+        return sorted(self.boostdict.items())
+
+    def get_boosts(self, i):
+        if not hasattr(self, "boostdict"):
+            self.boostdict = {}
+        if i in self.boostdict:
+            return self.boostdict[i]
+        a, b = self.calculate_shamans(i)
+        a = ShamanCompat.get(a)
+        c = CharacterObject.get(self.index)
+        a_comp = a.get_compatibility(c)
+        values = []
+        if b is not None:
+            b = ShamanCompat.get(b)
+            b_comp = b.get_compatibility(c)
+            if b_comp > a_comp:
+                a, b = b, a
+                a_comp, b_comp = b_comp, a_comp
+            ab_comp = a.get_compatibility(b)
+            reverse, unstable = False, False
+            lower, upper = min(a_comp, b_comp), max(a_comp, b_comp)
+            if (lower > 0.5 and ab_comp < 0.5
+                    and ab_comp < random.triangular(0, lower)):
+                reverse = True
+            elif (upper < 0.5 and ab_comp > 0.5
+                    and ab_comp > random.triangular(upper, 1)):
+                unstable = True
+            b_comp = max(b_comp, a_comp * ab_comp)
+            for affinity in AFFINITIES:
+                if unstable:
+                    values.append(random.randint(0, random.randint(50, 100)))
+                else:
+                    a_index = a.affinities.index(affinity)
+                    b_index = b.affinities.index(affinity)
+                    if reverse:
+                        a_index, b_index = 4-a_index, 4-b_index
+                    a_val = (a_comp**2) * (100.0 / (2 ** a_index))
+                    b_val = (b_comp**2) * (100.0 / (2 ** b_index))
+                    values.append(max(a_val, b_val))
+        else:
+            for affinity in AFFINITIES:
+                a_index = a.affinities.index(affinity)
+                a_val = a_comp * (50.0 / (2 ** a_index))
+                values.append(a_val)
+        values = [mutate_normal(v, maximum=100, return_float=True)
+                  for v in values]
+        values = tuple([round(v/100.0, 3) for v in values])
+        self.boostdict[i] = values
+        return values
+
+    def harmony(self, i):
+        return max(self.get_compatibilities(i))
+
+    def dischord(self, i):
+        return 1 - min(self.get_compatibilities(i))
+
+    def resonance(self, i):
+        comps = self.get_compatibilities(i)
+        value = reduce(lambda (x, y): x*y, comps, 1)
+        value = value ** (1/float(len(comps)))
+
+    @classmethod
+    def calculate_index(cls, a, b=None):
+        assert a is not None
+        if isinstance(a, int):
+            a = cls.shamans[a]
+        if b is not None:
+            if isinstance(b, int):
+                b = cls.shamans[b]
+            (a, b) = tuple(sorted([a, b], key=lambda c: cls.shamans[c]))
+        return cls.combos[a, b]
+
+    @classmethod
+    def calculate_shamans(cls, i):
+        return cls.combos[i]
+
+    def __repr__(self):
+        return self.full_description
+
+    @property
+    def full_description(self):
+        s = hexstring(self.fusions)
+        fs = [f for f in FusionObject if (f.index+1) in self.fusions]
+        for f in fs:
+            index = self.fusions.index(f.index+1)
+            shamans = self.calculate_shamans(index)
+            s += "\n%s" % f
+            s += " %s" % CharacterObject.get(self.index).display_name
+            s += " %s" % shamans[0]
+            if None not in shamans:
+                s += " %s" % shamans[1]
+        return s
+
+    def get_fusion(self, a, b=None):
+        if b is not None or not isinstance(a, int):
+            index = self.calculate_index(a, b)
+        else:
+            index = a
+        index = self.fusions[index]
+        if index == 0:
+            return None
+        return FusionObject.get(index-1)
+
+    def set_fusion(self, index, fusion):
+        assert index not in self.nullified
+        fusion.Luk = 0
+        self.fusions[index] = fusion.index + 1
+        boosts = self.get_boosts(index)
+        for affinity, boost in zip(AFFINITIES, boosts):
+            getattr(fusion, affinity)
+            boost = int(round(boost * 255))
+            setattr(fusion, affinity, boost)
+        harmony = int(round((self.harmony(index)**4)*50))
+        dischord = int(round((self.dischord(index)**4)*25))
+        shamans = [s for s in self.calculate_shamans(index) if s is not None]
+        if len(shamans) == 1:
+            harmony = harmony / 4
+            dischord = dischord / 4
+        if self.index == 0:
+            fusion.character = 0
+        elif random.randint(1, 100) <= harmony:
+            fusion.character = random.choice(SUPER_FUSIONS)
+        elif random.randint(1, 100) <= dischord:
+            fusion.character = random.choice(CHAOS_FUSIONS)
+        else:
+            fusion.character = self.index * 2
+
+
+class FusionObject(TableObject):
+    @property
+    def charname(self):
+        assert not (self.character % 2)
+        index = self.character / 2
+        try:
+            c = CharacterObject.get(index)
+        except KeyError:
+            return "%x" % self.character
+        return "%x %s" % (self.character, c.display_name)
+
+    def __repr__(self):
+        s = []
+        for attr in ["Off", "Def", "Vig", "mAP", "Wis"]:
+            value = int(round(getattr(self, attr) / 2.55))
+            value = "{0:0>2}".format(value)
+            s.append("%s %s" % (attr, value))
+        s = ", ".join(s)
+        s = "%x %s - %x" % (self.index+1, s, self.character)
+        return s
 
 
 class FormationObject(TableObject):
@@ -876,6 +1141,32 @@ def get_shops(filename=None):
     return get_shops()
 
 
+def randomize_fusions():
+    scomps = ShamanCompat.all_elements
+    random.shuffle(scomps)
+    for s in scomps:
+        s.generate_compatibility()
+
+    all_all_boosts = []
+    for c in ComboObject:
+        all_boosts = c.get_all_boosts()
+        for index, boosts in all_boosts:
+            all_all_boosts.append((c.index, index, sum(boosts)))
+
+    all_all_boosts = sorted(all_all_boosts, key=lambda (a, b, c): c)
+    for c_index, index, _ in all_all_boosts[:-len(FusionObject.every)]:
+        c = ComboObject.get(c_index)
+        c.nullify(index)
+        all_all_boosts.remove((c_index, index, _))
+
+    all_all_boosts = sorted(all_all_boosts)
+    assert len(all_all_boosts) == len(FusionObject.every)
+    for i, (c_index, index, _) in enumerate(all_all_boosts):
+        c = ComboObject.get(c_index)
+        f = FusionObject.get(i)
+        c.set_fusion(index, f)
+
+
 if __name__ == "__main__":
     if len(argv) >= 2:
         sourcefile = argv[1]
@@ -907,6 +1198,8 @@ if __name__ == "__main__":
         ao.every
 
     if RANDOMIZE:
+        random.seed(seed)
+        randomize_fusions()
         random.seed(seed)
         for d in DropObject.every:
             d.mutate()
@@ -941,9 +1234,6 @@ if __name__ == "__main__":
 
     # NO RANDOMIZATION PAST THIS LINE
 
-    for m in MonsterObject.every:
-        m.hp = 1
-
     special_write = [LearnObject]
     for ao in all_objects:
         if ao in special_write:
@@ -968,6 +1258,10 @@ if __name__ == "__main__":
         s += ao.__name__.upper() + "\n"
         s += ao.catalogue
         s += "\n\n"
+
+    for scp in ShamanCompat.all_elements:
+        s += str(scp) + "\n\n"
+
     s = s.strip()
     f = open(txtfile, "w+")
     f.write(s + "\n")

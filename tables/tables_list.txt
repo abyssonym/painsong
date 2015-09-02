@@ -5,6 +5,8 @@ DropObject      drop_table.txt      54b40   64
 LevelUpObject   levelup_table.txt   571b0   9
 FormationObject formation_table.txt 57df0   256
 SpellObject     spell_table.txt     584f0   84
+ComboObject     combo_table.txt     58a61   8
+FusionObject    fusion_table.txt    58b10   158
 MonsterObject   monster_table.txt   59000   200
 DresserObject   dresser_table.txt   5b948   186     grouped
 ChestObject     chest_table.txt     63d3a   160

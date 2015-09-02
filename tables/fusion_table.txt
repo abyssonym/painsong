@@ -1,0 +1,8 @@
+zero,1
+Off,1
+Def,1
+Vig,1
+Wis,1
+Luk,1
+mAP,1
+character,1
