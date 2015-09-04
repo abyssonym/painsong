@@ -617,11 +617,7 @@ class ItemObject(TableObject):
 
         for typestr in ["weapon", "shield", "helmet", "armor"]:
             if getattr(self, "is_%s" % typestr) and self.suffix is not None:
-                if typestr in ["shield", "helmet"]:
-                    itemtypes = (self.itemtypes["shield"] +
-                                 self.itemtypes["helmet"])
-                else:
-                    itemtypes = self.itemtypes[typestr]
+                itemtypes = self.itemtypes[typestr]
                 itemtype = random.choice(itemtypes)
 
                 suffixes = self.suffix_dict[itemtype]
