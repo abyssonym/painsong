@@ -1,6 +1,7 @@
 # objname tablefile address count grouped
 InitialObject   initial_table.txt   4f7     36
 CharacterObject character_table.txt 87c     11
+RecipeObject    recipe_table.txt    3f95f   56
 DropObject      drop_table.txt      54b40   64
 LevelUpObject   levelup_table.txt   571b0   9
 FormationObject formation_table.txt 57df0   256

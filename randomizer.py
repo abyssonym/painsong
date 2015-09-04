@@ -288,6 +288,19 @@ class FusionObject(TableObject):
         return s
 
 
+class RecipeObject(TableObject):
+    @property
+    def item(self):
+        return ItemObject.get(self.index+1)
+
+    @property
+    def cookable(self):
+        for r in RecipeObject.every[:self.index]:
+            if r.score == self.score:
+                return False
+        return True
+
+
 class FormationObject(TableObject):
     def __repr__(self):
         s = "%x %s: " % (self.index, hexstring(self.unknown))
