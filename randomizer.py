@@ -85,21 +85,21 @@ class ShamanCompat():
                 s = s.strip()
                 s += "\n"
             if element == self.element:
-                s += "{0:5} N/A     ".format(element)
+                s += "{0:5} N/A      ".format(element)
                 continue
-            value = int(self.compatibility[element] * 4)
-            value = min(value, 3)
+            value = int(self.compatibility[element] * 5)
+            value = min(value, 4)
             value = '*' + ('*' * value)
-            s += "{0:5} {1:-<4}    ".format(element, value)
+            s += "{0:5} {1:-<5}    ".format(element, value)
         for i in range(0, 8):
             name = CharacterObject.get(i).display_name
             if name in ["Ryu", "Nina"]:
                 s = s.strip()
                 s += "\n"
-            value = int(self.compatibility[i] * 4)
-            value = min(value, 3)
+            value = int(self.compatibility[i] * 5)
+            value = min(value, 4)
             value = '*' + ('*' * value)
-            s += "{0:4} {1:-<4}    ".format(name, value)
+            s += "{0:4} {1:-<5}    ".format(name, value)
         return s.strip()
 
 
