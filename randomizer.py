@@ -1194,6 +1194,38 @@ def randomize_fusions():
         c.set_fusion(index, f)
 
 
+def randomize_othello(filename):
+    prizes = [(0x9220, ['SD', 'RP']),
+              (0x9255, 'WP'),
+              (0x9278, 'BW'),
+              (0x929b, 'HT'),
+              (0x95e1, 'DR'),
+              (0x9616, 'ST'),
+              (0x9639, ['AR', 'ML']),
+              (0x965C, 'SH')]
+    f = open(filename, "r+b")
+    for address, types in prizes:
+        if not isinstance(types, list):
+            types = [types]
+        f.seek(address)
+        old = ItemObject.get(ord(f.read(1)))
+        candidates = [i for i in ItemObject.ranked if i is old
+                      or i.display_name[-2:] in types]
+        index = candidates.index(old)
+        if len(candidates) == 1:
+            chosen = old
+        else:
+            candidates.remove(old)
+            if index >= len(candidates):
+                chosen = candidates[-1]
+            else:
+                chosen = random.choice(candidates[index:])
+        f.seek(address)
+        f.write(chr(chosen.index))
+        print old.display_name, chosen.display_name
+    f.close()
+
+
 if __name__ == "__main__":
     if len(argv) >= 2:
         sourcefile = argv[1]
@@ -1259,6 +1291,8 @@ if __name__ == "__main__":
             l.mutate()
         fix_initial_spells()
         set_warps_free()
+        random.seed(seed)
+        randomize_othello(outfile)
 
     # NO RANDOMIZATION PAST THIS LINE
 
