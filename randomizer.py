@@ -848,6 +848,13 @@ class MonsterObject(TableObject):
         return s
 
     @property
+    def is_boss(self):
+        for f in FormationObject:
+            if self in f.enemies:
+                return False
+        return True
+
+    @property
     def drops(self):
         return DropObject.get(self.treasure_set)
 
