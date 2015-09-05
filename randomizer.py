@@ -85,17 +85,21 @@ class ShamanCompat():
                 s = s.strip()
                 s += "\n"
             if element == self.element:
-                s += "{0:5}: --   ".format(element)
+                s += "{0:5} N/A     ".format(element)
                 continue
-            value = int(round(self.compatibility[element] * 100))
-            s += "{0:5}:{1: >3}   ".format(element, value)
+            value = int(self.compatibility[element] * 4)
+            value = min(value, 3)
+            value = '*' + ('*' * value)
+            s += "{0:5} {1:-<4}    ".format(element, value)
         for i in range(0, 8):
             name = CharacterObject.get(i).display_name
             if name in ["Ryu", "Nina"]:
                 s = s.strip()
                 s += "\n"
-            value = int(round(self.compatibility[i] * 100))
-            s += "{0:4}:{1: >3}   ".format(name, value)
+            value = int(self.compatibility[i] * 4)
+            value = min(value, 3)
+            value = '*' + ('*' * value)
+            s += "{0:4} {1:-<4}    ".format(name, value)
         return s.strip()
 
 
@@ -839,9 +843,8 @@ class MonsterObject(TableObject):
                "agl": 511, "ms": 7, "xp": 65535, "gp": 65535}
 
     def __repr__(self):
-        unknown3 = " ".join(["{0:02x}".format(ord(c)) for c in self.unknown])
-        s = "{0:02x} {1} {2}".format(
-            self.index, unknown3, self.display_name)
+        s = "{0:02x} {1}".format(
+            self.index, self.display_name)
         return s
 
     @property
@@ -853,8 +856,7 @@ class MonsterObject(TableObject):
         if not self.display_name:
             return -1
 
-        attrs = ["hp", "ap", "luck", "atp",
-                 "dfp", "agl", "ms"]
+        attrs = ["hp", "luck", "atp", "dfp"]
         if not self.minmax_dict:
             for attr in attrs:
                 values = [getattr(m, attr) for m in MonsterObject.every]
@@ -1222,7 +1224,6 @@ def randomize_othello(filename):
                 chosen = random.choice(candidates[index:])
         f.seek(address)
         f.write(chr(chosen.index))
-        print old.display_name, chosen.display_name
     f.close()
 
 

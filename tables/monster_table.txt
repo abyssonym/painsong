@@ -11,5 +11,4 @@ gp,2
 treasure_set,1
 type,1
 treasure_class,1
-ai,1
-unknown,4,str
+ai,5,str

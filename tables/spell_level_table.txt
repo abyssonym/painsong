@@ -71,7 +71,7 @@ c 40 Cure X
 45 27 GrndBeef
 46 -1 Horror
 47 -1 Psn.Chop
-48 1 Spore
+48 -1 Spore
 49 -1 Spore
 4a 10 Herb
 4b 1 Recover
