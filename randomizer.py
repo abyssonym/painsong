@@ -23,6 +23,7 @@ name_generator_file = path.join(tblpath, "generator.txt")
 
 g_learns = None
 g_shops = None
+TEST = False
 RANDOMIZE = True
 VERSION = 1
 ELEMENTS = ["fire", "water", "wind", "earth", "holy", "dark"]
@@ -1607,11 +1608,16 @@ if __name__ == "__main__":
 
     write_learn_spells(outfile)
 
-    rewrite_snes_title("BOF2-R %s" % seed, outfile, VERSION)
+    rewrite_snes_title("BOF2-PS %s" % seed, outfile, VERSION)
     rewrite_snes_checksum(outfile)
 
+    if TEST:
+        catobjects = sorted(all_objects, key=lambda a: a.__name__)
+    else:
+        catobjects = [CharacterObject]
+
     s = ""
-    for ao in sorted(all_objects, key=lambda a: a.__name__):
+    for ao in catobjects:
         s += ao.__name__.upper() + "\n"
         s += ao.catalogue
         s += "\n\n"
