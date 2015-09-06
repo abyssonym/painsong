@@ -1,6 +1,6 @@
 from randomtools.tablereader import TableObject, set_global_table_filename
 from randomtools.utils import (
-    read_multi, write_multi, classproperty, mutate_normal, mutate_index,
+    read_multi, write_multi, classproperty, mutate_normal,
     hexstring, rewrite_snes_title, rewrite_snes_checksum,
     get_snes_palette_transformer, generate_name,
     utilrandom as random)
@@ -9,6 +9,7 @@ from os import path
 from sys import argv
 from time import time
 from math import log
+import string
 
 
 try:
@@ -29,6 +30,15 @@ AFFINITIES = ["Off", "Def", "Vig", "Wis", "mAP"]
 DONE_AFFINITIES = []
 CHAOS_FUSIONS = [0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe, 0x10, 0x12]
 SUPER_FUSIONS = [0x16, 0x18, 0x1a, 0x1c, 0x1e, 0x20, 0x22, 0x24, 0x26]
+difficulty = None
+
+
+def set_difficulty(value):
+    global difficulty
+    if not isinstance(value, float) and not isinstance(value, int):
+        value = 1.0
+    difficulty = value
+    return difficulty
 
 
 class ShamanCompat():
@@ -1040,11 +1050,12 @@ class MonsterObject(TableObject):
         self.treasure_class = mutate_normal(self.treasure_class, maximum=6)
 
     def mutate_stats(self):
-        self.xp *= 2
-        self.gp *= 2
+        self.xp *= (4.0 / (2**difficulty))
+        self.gp *= (4.0 / (2**difficulty))
         ranked = MonsterObject.ranked
         modifactor = (ranked.index(self) / float(len(ranked)-1))
         modifactor = (modifactor ** 2) / 2.0
+        modifactor = modifactor * (difficulty**0.5)
         assert modifactor <= 0.50
         for attr in sorted(self.maxdict):
             maxval = self.maxdict[attr]
@@ -1438,18 +1449,59 @@ def lower_encounter_rate(filename):
 
 
 if __name__ == "__main__":
+    def display_flag_options():
+        print
+        print "\n".join([
+            "Choose which things to randomize (blank for all).",
+            "f  fusions",
+            "t  treasure",
+            "m  monsters",
+            "n  monster names and palettes",
+            "p  shops",
+            "q  item equippability",
+            "c  character stats",
+            "s  character spells",
+            "w  cooking and othello",
+            ])
+        print
+
     if len(argv) >= 2:
         sourcefile = argv[1]
         if len(argv) >= 3:
-            seed = int(argv[2])
+            flags = argv[2]
+            if len(argv) >= 4:
+                seed = int(argv[3])
+                if len(argv) >= 5:
+                    set_difficulty(float(argv[4]))
+                else:
+                    set_difficulty(1.0)
+            else:
+                seed = None
+                set_difficulty(1.0)
         else:
+            flags = ""
             seed = None
+            set_difficulty(1.0)
     else:
         sourcefile = raw_input("Filename? ")
+        display_flag_options()
+        flags = raw_input("Flags? ")
         seed = raw_input("Seed? ")
+        d = raw_input("Difficulty? (default: 1.0) ")
+        print
+        try:
+            d = float(d)
+        except ValueError:
+            d = 1.0
+        set_difficulty(d)
+
+    if not flags.strip():
+        flags = string.lowercase
 
     if seed is None or seed == "":
         seed = int(time())
+    else:
+        seed = int(seed)
     seed = seed % (10**10)
 
     outfile = sourcefile.split(".")
@@ -1468,51 +1520,69 @@ if __name__ == "__main__":
         ao.every
 
     if RANDOMIZE:
-        random.seed(seed)
-        randomize_fusions()
-        random.seed(seed)
-        for d in DropObject.every:
-            d.mutate()
-        random.seed(seed)
-        for c in ChestObject.every:
-            c.mutate()
-        random.seed(seed)
-        for d in DresserObject.every:
-            d.mutate()
-        random.seed(seed)
-        for m in MonsterObject.every:
-            m.mutate_stats()
-            m.mutate_treasure()
-            m.mutate_palette()
-        MonsterObject.shuffle_ai()
-        MonsterObject.shuffle_stats()
-        #MonsterObject.randomize_names()
-        random.seed(seed)
-        for z in ZoneObject.every:
-            z.mutate()
-        random.seed(seed)
-        for i in ItemObject.every:
-            i.mutate_price()
-            i.mutate_equippable()
-        random.seed(seed)
-        for s in ShopObject.every:
-            s.mutate()
-        random.seed(seed)
-        for l in LevelUpObject.every:
-            l.mutate()
-        random.seed(seed)
-        for c in CharacterObject.every:
-            c.set_initial_equips()
-            c.set_initial_stats()
-        random.seed(seed)
-        for l in LearnObject.every:
-            l.mutate()
-        fix_initial_spells()
-        set_warps_free()
-        random.seed(seed)
-        randomize_othello(outfile)
-        random.seed(seed)
-        RecipeObject.shuffle_scores()
+        if 'f' in flags:
+            print "Randomizing fusions."
+            random.seed(seed)
+            randomize_fusions()
+        if 't' in flags:
+            print "Randomizing treasure."
+            random.seed(seed)
+            for d in DropObject.every:
+                d.mutate()
+            for c in ChestObject.every:
+                c.mutate()
+            for d in DresserObject.every:
+                d.mutate()
+            for m in MonsterObject.every:
+                m.mutate_treasure()
+        if 'm' in flags:
+            print "Randomizing monsters."
+            random.seed(seed)
+            for m in MonsterObject.every:
+                m.mutate_stats()
+            MonsterObject.shuffle_ai()
+            MonsterObject.shuffle_stats()
+            for z in ZoneObject.every:
+                z.mutate()
+        if 'n' in flags:
+            print "Randomizing monster palettes and names."
+            random.seed(seed)
+            for m in MonsterObject.every:
+                m.mutate_palette()
+            MonsterObject.randomize_names()
+        if 'p' in flags:
+            print "Randomizing shops."
+            random.seed(seed)
+            for i in ItemObject.every:
+                i.mutate_price()
+            for s in ShopObject.every:
+                s.mutate()
+        if 'q' in flags:
+            print "Randomizing item equippability."
+            random.seed(seed)
+            for i in ItemObject.every:
+                i.mutate_equippable()
+            for c in CharacterObject.every:
+                c.set_initial_equips()
+        if 'c' in flags:
+            print "Randomizing character stats."
+            random.seed(seed)
+            for l in LevelUpObject.every:
+                l.mutate()
+            for c in CharacterObject.every:
+                c.set_initial_stats()
+        if 's' in flags:
+            print "Randomizing character spells."
+            random.seed(seed)
+            for l in LearnObject.every:
+                l.mutate()
+            fix_initial_spells()
+            set_warps_free()
+        if 'w' in flags:
+            print "Randomizing cooking and othello."
+            random.seed(seed)
+            randomize_othello(outfile)
+            RecipeObject.shuffle_scores()
 
     # NO RANDOMIZATION PAST THIS LINE
 
@@ -1553,3 +1623,8 @@ if __name__ == "__main__":
     f = open(txtfile, "w+")
     f.write(s + "\n")
     f.close()
+
+    if len(argv) < 2:
+        print
+        raw_input("Randomization completed successfully. "
+                  "Press Enter to close this program.")
