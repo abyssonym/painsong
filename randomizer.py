@@ -1381,6 +1381,16 @@ def randomize_othello(filename):
     f.close()
 
 
+def lower_encounter_rate(filename):
+    f = open(filename, 'r+b')
+    f.seek(0x32750)
+    f.write("".join(map(chr, [0x22, 0x00, 0x49, 0xc5])))
+    f.seek(0x54900)
+    reduction = [0x4a] * 3
+    f.write("".join(map(chr, [0x85, 0x1c] + reduction + [0x6b])))
+    f.close()
+
+
 if __name__ == "__main__":
     if len(argv) >= 2:
         sourcefile = argv[1]
@@ -1457,6 +1467,8 @@ if __name__ == "__main__":
         randomize_othello(outfile)
 
     # NO RANDOMIZATION PAST THIS LINE
+
+    lower_encounter_rate(outfile)
 
     special_write = [LearnObject]
     for ao in all_objects:
