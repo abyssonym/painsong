@@ -2,7 +2,7 @@ from randomtools.tablereader import TableObject, set_global_table_filename
 from randomtools.utils import (
     read_multi, write_multi, classproperty, mutate_normal, mutate_index,
     hexstring, rewrite_snes_title, rewrite_snes_checksum,
-    get_snes_palette_transformer,
+    get_snes_palette_transformer, generate_name,
     utilrandom as random)
 from shutil import copyfile
 from os import path
@@ -18,6 +18,7 @@ except ImportError:
     tblpath = "tables"
 
 spell_level_file = path.join(tblpath, "spell_level_table.txt")
+name_generator_file = path.join(tblpath, "generator.txt")
 
 g_learns = None
 g_shops = None
@@ -328,6 +329,26 @@ class RecipeObject(TableObject):
             if r.score == self.score:
                 return False
         return True
+
+
+class ZoneObject(TableObject):
+    @property
+    def formations(self):
+        return [FormationObject.get(f) for f in self.formation_indexes]
+
+    def mutate(self):
+        indexes = sorted(set(self.formation_indexes))
+        new_indexes = list(indexes)
+        while len(new_indexes) < 8:
+            new_indexes.append(random.choice(indexes))
+        random.shuffle(new_indexes)
+        self.formation_indexes = new_indexes
+        assert len(self.formation_indexes) == 8
+
+    def __repr__(self):
+        s = "\n".join([str(f) for f in self.formations])
+        s = "%x\n%s" % (self.index, s)
+        return s
 
 
 class FormationObject(TableObject):
@@ -928,6 +949,14 @@ class MonsterObject(TableObject):
         return True
 
     @property
+    def is_overworld(self):
+        for z in ZoneObject:
+            for f in z.formations:
+                if self in f.enemies:
+                    return True
+        return False
+
+    @property
     def drops(self):
         return DropObject.get(self.treasure_set)
 
@@ -987,7 +1016,6 @@ class MonsterObject(TableObject):
         monsters = [m for m in MonsterObject.ranked if not m.is_boss]
         for (a, b) in zip(monsters, monsters[1:]):
             if random.choice([True, False]):
-                print a.display_name, b.display_name
                 a.ai, b.ai = b.ai, a.ai
                 a.ap, b.ap = b.ap, a.ap
 
@@ -1007,6 +1035,26 @@ class MonsterObject(TableObject):
                         aa, bb = getattr(a, att), getattr(b, att)
                         setattr(a, att, bb)
                         setattr(b, att, aa)
+
+    @classmethod
+    def randomize_names(cls):
+        done_names = []
+        monsters = [m for m in MonsterObject.ranked if not m.is_boss]
+        generate_name(namegen_table=name_generator_file)
+        for m in monsters:
+            while True:
+                name = generate_name(maxsize=8)
+                for done_name in done_names:
+                    if name in done_name or done_name in name:
+                        break
+                else:
+                    done_names.append(name)
+                    while len(name) < 8:
+                        name += " "
+                    assert len(name) == 8
+                    name = name.replace(" ", chr(0))
+                    m.name = name
+                    break
 
 
 class LearnObject(TableObject):
@@ -1382,6 +1430,10 @@ if __name__ == "__main__":
             m.mutate_palette()
         MonsterObject.shuffle_ai()
         MonsterObject.shuffle_stats()
+        MonsterObject.randomize_names()
+        random.seed(seed)
+        for z in ZoneObject.every:
+            z.mutate()
         random.seed(seed)
         for i in ItemObject.every:
             i.mutate_price()

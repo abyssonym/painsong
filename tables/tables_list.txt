@@ -5,6 +5,7 @@ GraphicsObject  graphics_table.txt  ce37    200
 RecipeObject    recipe_table.txt    3f95f   56
 # ShopObject                        3fac0
 DropObject      drop_table.txt      54b40   64
+ZoneObject      zone_table.txt      55668   64
 LevelUpObject   levelup_table.txt   571b0   9
 FormationObject formation_table.txt 57df0   256
 SpellObject     spell_table.txt     584f0   84
@@ -15,4 +16,4 @@ MonsterObject   monster_table.txt   59000   200
 DresserObject   dresser_table.txt   5b948   186     grouped
 ChestObject     chest_table.txt     63d3a   160
 ItemObject      item_table.txt      70000   256
-PaletteObject   palette_table.txt   863a0   415
+PaletteObject   palette_table.txt   86200   460
