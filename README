@@ -1,0 +1,43 @@
+Breath of Fire II: Painsong Randomizer
+Version:    2
+Date:       September 6, 2015
+URL:        https://github.com/abyssonym/painsong
+Contact:    https://twitter.com/abyssonym
+            https://www.twitch.tv/abyssonym
+
+--- HOW TO USE ---
+Running the randomizer:
+    Windows users may use the executable file, "bof2ps.exe". Other users, please run "randomizer.py" using Python version 2.7.
+
+Source rom file:
+    This randomizer requires the North American SNES Breath of Fire 2 rom. The rom used for testing had the following verification hashes.
+    MD5 - e1ff1ed4ad5dbdbe86774920dfb5e9d4
+    CRC32 - 67cdacc5
+
+Flags:
+    Input the following flags to customize your randomization experience.
+
+    f  randomize fusions
+    t  treasure
+    m  monsters
+    n  monster names and palettes
+    p  shops
+    q  item equippability
+    c  character stats
+    s  character spells
+    w  cooking and othello
+
+Seed value:
+    Input a seed value here, or leave it blank if you don't care.
+
+Difficulty value:
+    Use this to change the difficulty of the resulting randomization. A higher value results in less experience, less gold, and higher enemy stats.
+
+Output files:
+    The randomizer will output a new, randomized rom with the seed in the filename. It will also output a text file containing character stats, learnable spells, and shaman compatibility. For more information on how to use shaman compatibility, take a look at "fusion_howto.txt".
+
+Like this randomizer? Be sure to check out my other projects:
+    FF6 Beyond Chaos Randomizer
+        https://github.com/abyssonym/beyondchaos
+    FF Tactics Rumble Chaos Crashdown Randomizer
+        https://github.com/abyssonym/rumble_chaos_crashdown

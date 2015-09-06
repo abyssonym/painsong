@@ -25,7 +25,7 @@ g_learns = None
 g_shops = None
 TEST = False
 RANDOMIZE = True
-VERSION = 1
+VERSION = 2
 ELEMENTS = ["fire", "water", "wind", "earth", "holy", "dark"]
 AFFINITIES = ["Off", "Def", "Vig", "Wis", "mAP"]
 DONE_AFFINITIES = []
@@ -1466,6 +1466,7 @@ if __name__ == "__main__":
             ])
         print
 
+    print 'You are using "Breath of Fire II: Painsong" version %s.' % VERSION
     if len(argv) >= 2:
         sourcefile = argv[1]
         if len(argv) >= 3:
