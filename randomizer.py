@@ -330,6 +330,15 @@ class RecipeObject(TableObject):
                 return False
         return True
 
+    @classmethod
+    def shuffle_scores(self):
+        rs = [r for r in RecipeObject if r.score > 0]
+        scores = [r.score for r in rs]
+        assert len(set(scores)) == len(scores)
+        random.shuffle(scores)
+        for s, r in zip(scores, rs):
+            r.score = s
+
 
 class ZoneObject(TableObject):
     @property
@@ -1465,6 +1474,8 @@ if __name__ == "__main__":
         set_warps_free()
         random.seed(seed)
         randomize_othello(outfile)
+        random.seed(seed)
+        RecipeObject.shuffle_scores()
 
     # NO RANDOMIZATION PAST THIS LINE
 
