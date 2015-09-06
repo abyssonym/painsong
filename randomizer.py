@@ -313,6 +313,21 @@ class Unknown2Object(TableObject):
     pass
 
 
+class FormDataObject(TableObject):
+    '''
+    FORMAT:
+        Every enemy in the formation is separated by a FF byte.
+        Each enemy is 3 bytes,
+            1 byte enemy ID
+            2 bytes enemy graphic
+        The most different enemies in any formation is 3.
+    '''
+
+    @property
+    def formation(self):
+        return FormationObject.get(self.index)
+
+
 class GraphicsObject(TableObject):
     @property
     def palette(self):
@@ -388,6 +403,10 @@ class FormationObject(TableObject):
         s += ", ".join(["%x %s" % (e.index, e.display_name)
                         for e in self.enemies])
         return s
+
+    @property
+    def formdata(self):
+        return FormDataObject.get(self.index)
 
     @property
     def enemies(self):
@@ -1467,7 +1486,7 @@ if __name__ == "__main__":
             m.mutate_palette()
         MonsterObject.shuffle_ai()
         MonsterObject.shuffle_stats()
-        MonsterObject.randomize_names()
+        #MonsterObject.randomize_names()
         random.seed(seed)
         for z in ZoneObject.every:
             z.mutate()
@@ -1504,7 +1523,10 @@ if __name__ == "__main__":
         if ao in special_write:
             continue
         for o in ao.every:
-            o.write_data()
+            try:
+                o.write_data()
+            except NotImplementedError:
+                break
 
     ryu = CharacterObject.get(0)
     ryu.some_index = 9
