@@ -42,7 +42,7 @@ f 36 RenewX
 c 40 Cure X
 
 0 -1 Dummy
-8 12 Woodstep
+8 -1 Woodstep
 9 -1 ShortAP
 10 25 Dispell
 11 1 Katomana
@@ -56,8 +56,8 @@ c 40 Cure X
 36 -1 G.Drgn
 37 -1 G.Drgn
 38 9 Zombie
-39 12 Flrmagic
-3a 12 Ctcsbomb
+39 -1 Flrmagic
+3a -1 Ctcsbomb
 3b 1 Petrify
 3c 7 Psn.Atck
 3d -1 Psn.Brth
@@ -77,7 +77,7 @@ c 40 Cure X
 4b 1 Recover
 4c -1 IdiotLzr
 4d -1 Hunt
-4e 12 Whodini
+4e -1 Whodini
 4f -1 Anfini
 50 -1 BoneLzr
 51 -1 Anfini

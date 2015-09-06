@@ -1,2 +1,3 @@
-unknown,1,str
-enemy_ids,6,list
+mould,1
+enemy_ids,5,list
+ff,1

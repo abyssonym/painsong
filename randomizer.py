@@ -1,12 +1,14 @@
 from randomtools.tablereader import TableObject, set_global_table_filename
 from randomtools.utils import (
-    read_multi, write_multi, classproperty, mutate_normal, hexstring,
-    rewrite_snes_title, rewrite_snes_checksum,
+    read_multi, write_multi, classproperty, mutate_normal, mutate_index,
+    hexstring, rewrite_snes_title, rewrite_snes_checksum,
+    get_snes_palette_transformer,
     utilrandom as random)
 from shutil import copyfile
 from os import path
 from sys import argv
 from time import time
+from math import log
 
 
 try:
@@ -292,6 +294,29 @@ class FusionObject(TableObject):
         return s
 
 
+class GraphicsObject(TableObject):
+    @property
+    def palette(self):
+        if self.palette_address == 0:
+            return None
+
+        palette = [p for p in PaletteObject
+                   if self.palette_address == p.pointer & 0xFFFF]
+        if len(palette) != 1:
+            return None
+
+        return palette[0]
+
+
+class PaletteObject(TableObject):
+    def mutate(self):
+        if hasattr(self, "done") and self.done:
+            return
+        t = get_snes_palette_transformer()
+        self.colors = t(self.colors)
+        self.done = True
+
+
 class RecipeObject(TableObject):
     @property
     def item(self):
@@ -306,8 +331,12 @@ class RecipeObject(TableObject):
 
 
 class FormationObject(TableObject):
+    original_enemies = {}
+    mould_candidates = {}
+    moulds = []
+
     def __repr__(self):
-        s = "%x %s: " % (self.index, hexstring(self.unknown))
+        s = "%x %s: " % (self.index, hexstring(self.mould))
         s += ", ".join(["%x %s" % (e.index, e.display_name)
                         for e in self.enemies])
         return s
@@ -321,6 +350,36 @@ class FormationObject(TableObject):
             m = MonsterObject.get(eid)
             enemies.append(m)
         return enemies
+
+    @property
+    def rank(self):
+        eranks = [e.rank for e in self.enemies]
+        ranks = [sum(eranks) / len(eranks), max(eranks),
+                 sum(eranks) / (log(len(eranks))+1)]
+        rank = sum(ranks) / len(ranks)
+        return rank
+
+    def mutate(self):
+        num_different = len(set(self.enemies))
+        similars = [f for f in FormationObject if f.mould == self.mould
+                    and len(f.enemies) >= num_different]
+        chosen = random.choice(similars)
+        ids = [e for e in self.enemy_ids if e != 0xFF]
+        random.shuffle(ids)
+        ordering = range(5)
+        random.shuffle(ordering)
+        for index in ordering:
+            e = chosen.enemy_ids[index]
+            if e == 0xFF:
+                self.enemy_ids[index] = 0xff
+                continue
+            for i in ids:
+                if i not in self.enemy_ids:
+                    self.enemy_ids[index] = i
+                    break
+            else:
+                self.enemy_ids[index] = random.choice(ids)
+        return
 
 
 class InitialObject(TableObject):
@@ -848,6 +907,20 @@ class MonsterObject(TableObject):
         return s
 
     @property
+    def graphics(self):
+        return GraphicsObject.get(self.index)
+
+    @property
+    def palette(self):
+        return self.graphics.palette
+
+    def mutate_palette(self):
+        if self.is_boss:
+            return
+        if self.palette is not None:
+            self.palette.mutate()
+
+    @property
     def is_boss(self):
         for f in FormationObject:
             if self in f.enemies:
@@ -908,6 +981,32 @@ class MonsterObject(TableObject):
             if attr == "immunity":
                 continue
             setattr(self, attr, value)
+
+    @classmethod
+    def shuffle_ai(cls):
+        monsters = [m for m in MonsterObject.ranked if not m.is_boss]
+        for (a, b) in zip(monsters, monsters[1:]):
+            if random.choice([True, False]):
+                print a.display_name, b.display_name
+                a.ai, b.ai = b.ai, a.ai
+                a.ap, b.ap = b.ap, a.ap
+
+    @classmethod
+    def shuffle_stats(cls):
+        paired = {"dfp": ["hp"],
+                  "treasure_set": ["treasure_class"]}
+        monsters = [m for m in MonsterObject.ranked if not m.is_boss]
+        for (a, b) in zip(monsters, monsters[1:]):
+            for attr in ["atp", "dfp", "agl", "ms", "luck", "treasure_set"]:
+                if random.choice([True, False]):
+                    if attr in paired:
+                        to_switch = paired[attr] + [attr]
+                    else:
+                        to_switch = [attr]
+                    for att in to_switch:
+                        aa, bb = getattr(a, att), getattr(b, att)
+                        setattr(a, att, bb)
+                        setattr(b, att, aa)
 
 
 class LearnObject(TableObject):
@@ -1280,6 +1379,9 @@ if __name__ == "__main__":
         for m in MonsterObject.every:
             m.mutate_stats()
             m.mutate_treasure()
+            m.mutate_palette()
+        MonsterObject.shuffle_ai()
+        MonsterObject.shuffle_stats()
         random.seed(seed)
         for i in ItemObject.every:
             i.mutate_price()

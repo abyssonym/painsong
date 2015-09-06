@@ -1,0 +1,2 @@
+palette_address,2
+unknown,2,str
