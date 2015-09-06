@@ -2,6 +2,8 @@
 InitialObject   initial_table.txt   4f7     36
 CharacterObject character_table.txt 87c     11
 GraphicsObject  graphics_table.txt  ce37    200
+Unknown2Object  unknown2_table.txt  30000   42      pointed 30000   2
+UnknownObject   unknown_table.txt   30080   664     pointed 30000   2
 RecipeObject    recipe_table.txt    3f95f   56
 # ShopObject                        3fac0
 DropObject      drop_table.txt      54b40   64

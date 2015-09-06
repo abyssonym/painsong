@@ -295,6 +295,24 @@ class FusionObject(TableObject):
         return s
 
 
+class UnknownObject(TableObject):
+    @property
+    def parent(self):
+        cands = [u for u in Unknown2Object.every
+                 if u.unk_pointer <= (self.pointer & 0xFFFF)]
+        parent = max(cands, key=lambda u: u.unk_pointer)
+        assert parent.unk_pointer <= (self.pointer & 0xFFFF)
+        return parent
+
+    @property
+    def grandparent_index(self):
+        return self.parent.groupindex
+
+
+class Unknown2Object(TableObject):
+    pass
+
+
 class GraphicsObject(TableObject):
     @property
     def palette(self):
