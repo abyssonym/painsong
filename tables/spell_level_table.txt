@@ -45,7 +45,7 @@ c 40 Cure X
 8 -1 Woodstep
 9 -1 ShortAP
 10 25 Dispell
-11 1 Katomana
+11 -1 Katomana
 2c -1 RotBrth
 30 -1 FirPuppy
 31 -1 IcePuppy
@@ -58,10 +58,10 @@ c 40 Cure X
 38 9 Zombie
 39 -1 Flrmagic
 3a -1 Ctcsbomb
-3b 1 Petrify
+3b -1 Petrify
 3c 7 Psn.Atck
 3d -1 Psn.Brth
-3e 1 Mindblst
+3e -1 Mindblst
 3f -1 SwtBrth
 40 25 Curse
 41 -1 FireBrth
@@ -74,7 +74,7 @@ c 40 Cure X
 48 -1 Spore
 49 -1 Spore
 4a 10 Herb
-4b 1 Recover
+4b 11 Recover
 4c -1 IdiotLzr
 4d -1 Hunt
 4e -1 Whodini
