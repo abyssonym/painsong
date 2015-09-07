@@ -560,6 +560,8 @@ class CharacterObject(TableObject):
         return s.strip()
 
     def set_initial_equips(self):
+        if self.index == 0:
+            return
         if self.index > 8:
             return
         elif self.index == 8:
@@ -570,8 +572,6 @@ class CharacterObject(TableObject):
         candidates = [i for i in ItemObject.ranked if i.equippable & mask
                       and i.equippable != 0xFF and i.rank > 0]
         for itemtype in ["weapon", "shield", "helmet", "armor"]:
-            if self.index == 0 and itemtype in ["shield", "helmet"]:
-                continue
             typecands = [i for i in candidates
                          if getattr(i, "is_%s" % itemtype)]
             if typecands:
