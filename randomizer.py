@@ -570,6 +570,8 @@ class CharacterObject(TableObject):
         candidates = [i for i in ItemObject.ranked if i.equippable & mask
                       and i.equippable != 0xFF and i.rank > 0]
         for itemtype in ["weapon", "shield", "helmet", "armor"]:
+            if self.index == 0 and itemtype in ["shield", "helmet"]:
+                continue
             typecands = [i for i in candidates
                          if getattr(i, "is_%s" % itemtype)]
             if typecands:
@@ -1505,6 +1507,7 @@ if __name__ == "__main__":
     else:
         seed = int(seed)
     seed = seed % (10**10)
+    print "Using seed: %s" % seed
 
     outfile = sourcefile.split(".")
     outfile = outfile[:-1] + [str(seed), outfile[-1]]
