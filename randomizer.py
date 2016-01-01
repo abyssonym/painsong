@@ -1547,6 +1547,7 @@ if __name__ == "__main__":
                 m.mutate_stats()
             MonsterObject.shuffle_ai()
             MonsterObject.shuffle_stats()
+            MonsterObject.get(0x80).atp = 400
             for z in ZoneObject.every:
                 z.mutate()
         if 'n' in flags:
