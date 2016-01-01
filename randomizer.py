@@ -1143,6 +1143,12 @@ class LearnObject(TableObject):
     def pairs(self):
         return zip(self.levels, self.spells)
 
+    def add_pair(self, pair):
+        level, s_index = pair
+        self.levels = tuple(list(self.levels) + [level])
+        self.spell_indexes = tuple(list(self.spell_indexes) + [s_index])
+        self.sort_spells()
+
     def set_pairs(self, pairs):
         if not pairs:
             self.levels = []
@@ -1353,6 +1359,9 @@ def fix_initial_spells():
                 learn.levels[i] = level
                 learn.sort_spells()
                 break
+    learn = LearnObject.get(4)  # Nina's spells
+    for i in xrange(4):
+        learn.add_pair((0x01, 0x09))
 
 
 def set_warps_free():
@@ -1473,6 +1482,8 @@ if __name__ == "__main__":
         sourcefile = argv[1]
         if len(argv) >= 3:
             flags = argv[2]
+            if not set(flags) & set(string.letters):
+                flags = ""
             if len(argv) >= 4:
                 seed = int(argv[3])
                 if len(argv) >= 5:
