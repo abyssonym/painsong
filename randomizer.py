@@ -556,6 +556,8 @@ class CharacterObject(TableObject):
             s += "Starts with %s\n" % ", ".join(inits)
         spellup = LearnObject.get(self.index)
         for level, spell in spellup.pairs:
+            if level == 1 and spell.index == 9:
+                continue
             s += "lv{0:2} {1}\n".format(level, spell.display_name)
         return s.strip()
 
@@ -1174,10 +1176,14 @@ class LearnObject(TableObject):
     def write_data(self, filename, pointer):
         f = open(filename, 'r+b')
         for level, spell in self.pairs:
+            if f.tell() >= 0x5aaf8:
+                print "Notice: Spell overflow. Planned spells were cut."
+                break
             f.seek(pointer)
             f.write(chr(level) + chr(spell.index))
             pointer += 2
         f.seek(pointer)
+        assert f.tell() < 0x5ab00
         f.write(chr(0))
         f.close()
         pointer += 1
@@ -1359,9 +1365,13 @@ def fix_initial_spells():
                 learn.levels[i] = level
                 learn.sort_spells()
                 break
-    learn = LearnObject.get(4)  # Nina's spells
-    for i in xrange(4):
-        learn.add_pair((0x01, 0x09))
+
+    # the game is weird and skips the first X spells for some reason
+    spellskips = {2: 2, 4: 4, 5: 1, 6: 1, 7: 7, 8: 15}
+    for key, value in spellskips.items():
+        learn = LearnObject.get(key)
+        for i in xrange(value):
+            learn.add_pair((0x01, 0x09))
 
 
 def set_warps_free():
