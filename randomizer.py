@@ -1061,7 +1061,6 @@ class MonsterObject(TableObject):
         modifactor = (ranked.index(self) / float(len(ranked)-1))
         modifactor = (modifactor ** 2) / 2.0
         modifactor = modifactor * (difficulty**0.5)
-        assert modifactor <= 0.50
         for attr in sorted(self.maxdict):
             maxval = self.maxdict[attr]
             value = getattr(self, attr)
@@ -1662,8 +1661,11 @@ def randomize():
                   "Press Enter to close this program.")
 
 if __name__ == "__main__":
-    try:
+    if "test" in argv:
         randomize()
-    except Exception, e:
-        print "ERROR: %s" % e
-        raw_input("Press Enter to close this program.")
+    else:
+        try:
+            randomize()
+        except Exception, e:
+            print "ERROR: %s" % e
+            raw_input("Press Enter to close this program.")
