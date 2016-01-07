@@ -1470,7 +1470,7 @@ def lower_encounter_rate(filename):
     f.close()
 
 
-if __name__ == "__main__":
+def randomize():
     def display_flag_options():
         print
         print "\n".join([
@@ -1660,3 +1660,10 @@ if __name__ == "__main__":
         print
         raw_input("Randomization completed successfully. "
                   "Press Enter to close this program.")
+
+if __name__ == "__main__":
+    try:
+        randomize()
+    except Exception, e:
+        print "ERROR: %s" % e
+        raw_input("Press Enter to close this program.")
