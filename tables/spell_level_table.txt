@@ -74,7 +74,7 @@ c 40 Cure X
 48 -1 Spore
 49 -1 Spore
 4a 10 Herb
-4b 11 Recover
+4b 45 Recover
 4c -1 IdiotLzr
 4d -1 Hunt
 4e -1 Whodini
